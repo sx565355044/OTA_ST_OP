@@ -1,9 +1,13 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express, Request, Response, NextFunction } from "express";
-import { postgresStorage as storage } from "./storage-pg";
+import { storage } from "./storage"; // Use the default storage
 import { comparePassword, encryptPassword } from "./utils/encryption";
 import { User as SelectUser } from "@shared/schema";
+import dotenv from "dotenv";
+
+// Load environment variables
+dotenv.config();
 
 declare global {
   namespace Express {
@@ -24,23 +28,40 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Check if we're in development mode with allow any password
+  const allowAnyPassword = process.env.ALLOW_ANY_PASSWORD === "true";
+  console.log(`Authentication setup with ALLOW_ANY_PASSWORD=${allowAnyPassword}`);
+
   // 配置本地策略
   passport.use(
     new LocalStrategy(async (username: string, password: string, done: any) => {
       try {
+        console.log(`Login attempt for user: ${username}`);
         const user = await storage.getUserByUsername(username);
+        
         if (!user) {
+          console.log(`User not found: ${username}`);
           return done(null, false, { message: "Invalid credentials" });
         }
         
-        // 检查密码
-        const isMatch = await comparePassword(password, user.password);
-        if (!isMatch) {
-          return done(null, false, { message: "Invalid credentials" });
+        // 检查密码 (skip in development with ALLOW_ANY_PASSWORD)
+        if (allowAnyPassword) {
+          console.log(`ALLOW_ANY_PASSWORD is true, skipping password verification for ${username}`);
+          return done(null, user);
+        } else {
+          console.log(`Verifying password for ${username}`);
+          const isMatch = await comparePassword(password, user.password);
+          if (!isMatch) {
+            console.log(`Password verification failed for ${username}`);
+            return done(null, false, { message: "Invalid credentials" });
+          }
+          console.log(`Password verified for ${username}`);
         }
         
+        console.log(`Authentication successful for ${username}`);
         return done(null, user);
       } catch (error) {
+        console.error(`Authentication error:`, error);
         return done(error);
       }
     }),

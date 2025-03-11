@@ -17,8 +17,16 @@ import {
   InsertStrategyTemplate,
 } from "@shared/schema";
 
+import session from 'express-session';
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
+
 // Interface for storage methods
 export interface IStorage {
+  // Session store for express-session
+  sessionStore: session.Store;
+  
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -75,6 +83,8 @@ export interface IStorage {
 
 // In-memory storage implementation
 export class MemStorage implements IStorage {
+  sessionStore: session.Store;
+
   private users: Map<number, User>;
   private otaAccounts: Map<number, OtaAccount>;
   private activities: Map<number, Activity>;
@@ -94,6 +104,11 @@ export class MemStorage implements IStorage {
   private nextTemplateId: number;
   
   constructor() {
+    // Initialize session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    });
+    
     this.users = new Map();
     this.otaAccounts = new Map();
     this.activities = new Map();
