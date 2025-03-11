@@ -97,17 +97,25 @@ export default function Admin() {
   
   // 当参数数据加载时更新权重
   useEffect(() => {
-    if (strategyParams && Array.isArray(strategyParams) && strategyParams.length > 0) {
-      const newWeights: Partial<StrategyWeights> = {};
+    if (strategyParams) {
+      const paramsArray = Array.isArray(strategyParams) 
+        ? strategyParams 
+        : Object.values(strategyParams).filter(item => 
+            item && typeof item === 'object' && 'id' in item && 'value' in item
+          ) as StrategyParameter[];
       
-      strategyParams.forEach((param: StrategyParameter) => {
-        if (param.key === 'longTermBooking') newWeights.longTermBooking = param.value;
-        if (param.key === 'costEfficiency') newWeights.costEfficiency = param.value;
-        if (param.key === 'visibility') newWeights.visibility = param.value;
-        if (param.key === 'occupancyRate') newWeights.occupancyRate = param.value;
-      });
-      
-      setWeights(prev => ({ ...prev, ...newWeights }));
+      if (paramsArray.length > 0) {
+        const newWeights: Partial<StrategyWeights> = {};
+        
+        paramsArray.forEach((param: StrategyParameter) => {
+          if (param.paramKey === 'future_booking_weight') newWeights.longTermBooking = param.value;
+          else if (param.paramKey === 'cost_optimization_weight') newWeights.costEfficiency = param.value;
+          else if (param.paramKey === 'visibility_optimization_weight') newWeights.visibility = param.value;
+          else if (param.paramKey === 'daily_occupancy_weight') newWeights.occupancyRate = param.value;
+        });
+        
+        setWeights(prev => ({ ...prev, ...newWeights }));
+      }
     }
   }, [strategyParams]);
 
