@@ -22,7 +22,7 @@ const registerSchema = insertUserSchema.pick({
   username: true,
   password: true,
   hotel: true,
-  fullName: true,
+  role: true,
 }).extend({
   password: z.string().min(6, "密码至少6个字符"),
   confirmPassword: z.string(),
@@ -30,6 +30,8 @@ const registerSchema = insertUserSchema.pick({
   message: "两次输入的密码不一致",
   path: ["confirmPassword"],
 });
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +59,7 @@ export default function AuthPage() {
     password: "",
     confirmPassword: "",
     hotel: "",
-    fullName: "",
+    role: "manager" as const,
   });
 
   // 处理登录表单变化
@@ -121,7 +123,7 @@ export default function AuthPage() {
         username: registerForm.username,
         password: registerForm.password,
         hotel: registerForm.hotel,
-        fullName: registerForm.fullName || registerForm.username,
+        role: registerForm.role,
       });
       
       // 注册成功，跳转到首页
