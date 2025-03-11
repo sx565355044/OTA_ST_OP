@@ -2,9 +2,13 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from '../shared/schema';
+import { postgresStorage } from './storage-pg';
+import dotenv from 'dotenv';
 
-// 获取数据库连接 URL（优先环境变量，其次使用默认值）
-const dbUrl = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/mydatabase';
+dotenv.config();
+
+// 获取数据库连接 URL
+const dbUrl = process.env.DATABASE_URL;
 
 // 创建 PostgreSQL 连接池
 const pool = new Pool({
@@ -19,7 +23,20 @@ async function runMigrations() {
 
   try {
     // 执行迁移
-    await migrate(db, { migrationsFolder: './drizzle' });
+    console.log('创建数据库表...');
+    await db.insert(schema.users).values({
+      username: 'test',
+      password: 'test',
+      role: 'user',
+      hotel: 'Test Hotel',
+    }).onConflictDoNothing().execute();
+    console.log('数据库表创建成功！');
+    
+    // 初始化基础数据
+    console.log('初始化基础数据...');
+    await postgresStorage.initializeData();
+    console.log('基础数据初始化成功！');
+    
     console.log('数据库迁移成功完成！');
   } catch (error) {
     console.error('数据库迁移失败:', error);
@@ -29,5 +46,12 @@ async function runMigrations() {
   }
 }
 
-// 执行迁移
-runMigrations();
+// 如果直接运行此脚本，则执行迁移
+if (require.main === module) {
+  runMigrations().catch(err => {
+    console.error('迁移失败:', err);
+    process.exit(1);
+  });
+}
+
+export { runMigrations };

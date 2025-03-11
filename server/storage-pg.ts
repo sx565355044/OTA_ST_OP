@@ -6,7 +6,7 @@ import {
   strategyParameters, strategyTemplates
 } from '../shared/schema';
 import { db } from './db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, not, isNull } from 'drizzle-orm';
 import { IStorage } from './storage';
 import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
@@ -134,7 +134,8 @@ export class PostgresStorage implements IStorage {
     const result = await db.select().from(strategies)
       .where(and(
         eq(strategies.userId, userId),
-        strategies.appliedAt.isNotNull()
+        // Filter only strategies that have been applied (appliedAt is not null)
+        not(isNull(strategies.appliedAt))
       ))
       .orderBy(strategies.appliedAt);
     return result;
@@ -142,7 +143,7 @@ export class PostgresStorage implements IStorage {
 
   async getRecentAppliedStrategies(limit: number): Promise<Strategy[]> {
     const result = await db.select().from(strategies)
-      .where(strategies.appliedAt.isNotNull())
+      .where(not(isNull(strategies.appliedAt)))
       .orderBy(strategies.appliedAt)
       .limit(limit);
     return result;
@@ -338,7 +339,6 @@ export class PostgresStorage implements IStorage {
         name: '暑期特惠',
         description: '暑期家庭出游特别折扣',
         platformId: 1,
-        userId: 1,
         startDate: now,
         endDate: nextMonth,
         discount: '8.5折',
@@ -347,15 +347,13 @@ export class PostgresStorage implements IStorage {
         minimumStay: 2,
         maxBookingWindow: 90,
         status: 'active',
-        tag: '热门',
-        participationStatus: 'joined'
+        tag: '热门'
       });
 
       await this.createActivity({
         name: '周末闪购',
         description: '限时48小时特惠房价',
         platformId: 2,
-        userId: 1,
         startDate: tomorrow,
         endDate: nextWeek,
         discount: '75折',
@@ -364,15 +362,13 @@ export class PostgresStorage implements IStorage {
         minimumStay: 1,
         maxBookingWindow: 30,
         status: 'upcoming',
-        tag: '限时',
-        participationStatus: 'pending'
+        tag: '限时'
       });
 
       await this.createActivity({
         name: '预付立减',
         description: '提前预付享受额外折扣',
         platformId: 3,
-        userId: 1,
         startDate: now,
         endDate: nextMonth,
         discount: '8.8折',
@@ -381,8 +377,7 @@ export class PostgresStorage implements IStorage {
         minimumStay: 1,
         maxBookingWindow: 180,
         status: 'active',
-        tag: '推荐',
-        participationStatus: 'joined'
+        tag: '推荐'
       });
     }
 
@@ -434,18 +429,7 @@ export class PostgresStorage implements IStorage {
         userId: 1,
         notificationsEnabled: true,
         autoRefreshInterval: 15,
-        defaultStrategyPreference: 'balanced',
-        aiModelSettings: {
-          model: 'deepseek-chat-v1',
-          temperature: 0.7,
-          topP: 0.95
-        },
-        dashboardLayout: {
-          showRecentActivities: true,
-          showRecentStrategies: true,
-          showStats: true
-        },
-        theme: 'system'
+        defaultStrategyPreference: 'balanced'
       });
     }
 
@@ -456,8 +440,8 @@ export class PostgresStorage implements IStorage {
       await this.createApiKey({
         userId: 1,
         service: 'deepseek',
-        apiKey: '7f4e8d2a1b5c6f3e9d7a8b4c2e1d5f6a',
-        isActive: true
+        encryptedKey: '7f4e8d2a1b5c6f3e9d7a8b4c2e1d5f6a',
+        model: 'deepseek-chat-v1'
       });
     }
   }
