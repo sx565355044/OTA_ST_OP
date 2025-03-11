@@ -11,7 +11,7 @@ import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import Admin from "@/pages/admin";
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth, AuthProvider } from "./contexts/AuthContext";
 
 function Router() {
   const { isAuthenticated } = useAuth();
@@ -42,8 +42,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <AuthProvider>
+        <Router />
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
