@@ -188,9 +188,9 @@ export default function Admin() {
   });
 
   const handleParamChange = (paramId: string, value: number) => {
-    if (!strategyParams) return;
+    if (!strategyParams || strategyParams.length === 0) return;
     
-    const updatedParams = strategyParams.map((param: any) => 
+    const updatedParams = strategyParams.map((param: StrategyParameter) => 
       param.id === paramId ? { ...param, value } : param
     );
     
@@ -211,14 +211,14 @@ export default function Admin() {
   
   // 应用预设参数
   const applyPreset = (presetKey: string) => {
-    if (!strategyParams) return;
+    if (!strategyParams || strategyParams.length === 0) return;
     
     // 获取所选的预设
     const preset = paramPresets[presetKey as keyof typeof paramPresets];
     if (!preset) return;
     
     // 更新参数值
-    const updatedParams = strategyParams.map((param: any) => {
+    const updatedParams = strategyParams.map((param: StrategyParameter) => {
       const paramKey = param.key as keyof typeof preset;
       if (preset[paramKey] !== undefined) {
         return { ...param, value: preset[paramKey] };
@@ -289,7 +289,7 @@ export default function Admin() {
               {activeTab === 'standard' ? (
                 <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
                   <div className="space-y-6">
-                    {strategyParams?.map((param: any) => (
+                    {strategyParams?.map((param: StrategyParameter) => (
                       <div key={param.id}>
                         <div className="flex items-center justify-between">
                           <label htmlFor={param.id} className="block text-sm font-medium text-gray-700">
@@ -439,7 +439,7 @@ export default function Admin() {
                       className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
                     >
                       <option value="">选择一个策略...</option>
-                      {strategyParams?.recentStrategies?.map((strategy: any) => (
+                      {strategyParamsWithRecent?.recentStrategies?.map((strategy: Strategy) => (
                         <option key={strategy.id} value={strategy.id}>
                           {strategy.name} ({new Date(strategy.appliedAt).toLocaleDateString()})
                         </option>
@@ -462,7 +462,7 @@ export default function Admin() {
                   <h4 className="text-base font-medium text-gray-900">当前模板</h4>
                   {strategyTemplates?.length > 0 ? (
                     <ul className="mt-3 divide-y divide-gray-200">
-                      {strategyTemplates.map((template: any) => (
+                      {strategyTemplates.map((template: StrategyTemplate) => (
                         <li key={template.id} className="py-4">
                           <div className="flex items-center justify-between">
                             <div>
