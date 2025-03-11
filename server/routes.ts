@@ -210,12 +210,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 添加一个额外的路径以兼容前端请求
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", (req: any, res) => {
     console.log("GET /api/user request received");
     console.log("Session:", req.session);
     console.log("User ID in session:", req.session?.userId);
+    console.log("isAuthenticated:", req.isAuthenticated?.());
+    console.log("passport:", req.session?.passport);
     
+    // 首先尝试使用Passport的认证状态
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      console.log("Authentication via passport successful");
+      const { password: _, ...userInfo } = req.user;
+      return res.status(200).json(userInfo);
+    }
+    
+    // 如果失败，尝试使用session中的userId
     if (req.session && req.session.userId) {
+      console.log("Trying to authenticate via session userId");
       return storage.getUser(req.session.userId)
         .then(user => {
           if (!user) {
@@ -257,9 +268,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Middleware to check authentication
   const checkAuth = (req: any, res: any, next: any) => {
-    if (req.session && req.session.userId) {
+    // 首先尝试使用Passport的认证状态
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      console.log("checkAuth: Authenticated via passport");
       return next();
     }
+    
+    // 如果失败，尝试使用session中的userId
+    if (req.session && req.session.userId) {
+      console.log("checkAuth: Authenticated via session userId");
+      return next();
+    }
+    
+    console.log("checkAuth: Not authenticated");
     return res.status(401).json({ message: "Not authenticated" });
   };
 
