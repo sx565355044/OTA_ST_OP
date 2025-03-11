@@ -77,12 +77,15 @@ export default function Admin() {
   
   // 获取当前策略参数
   const { data: strategyParams = [] as StrategyParameter[] } = useQuery<StrategyParameter[]>({
-    queryKey: ['/api/admin/strategy-parameters'],
-    onSuccess: (data) => {
-      // 根据API返回的参数填充权重状态
+    queryKey: ['/api/admin/strategy-parameters']
+  });
+  
+  // 当参数数据加载时更新权重
+  useEffect(() => {
+    if (strategyParams && Array.isArray(strategyParams) && strategyParams.length > 0) {
       const newWeights: Partial<StrategyWeights> = {};
       
-      data.forEach((param: StrategyParameter) => {
+      strategyParams.forEach((param: StrategyParameter) => {
         if (param.key === 'longTermBooking') newWeights.longTermBooking = param.value;
         if (param.key === 'costEfficiency') newWeights.costEfficiency = param.value;
         if (param.key === 'visibility') newWeights.visibility = param.value;
@@ -91,7 +94,7 @@ export default function Admin() {
       
       setWeights(prev => ({ ...prev, ...newWeights }));
     }
-  });
+  }, [strategyParams]);
 
   // 为了类型兼容性定义一个包含策略列表的接口
   interface StrategyParamsWithRecent {
@@ -219,10 +222,11 @@ export default function Admin() {
   
   // 保存所有权重
   const saveAllWeights = () => {
-    if (!strategyParams || strategyParams.length === 0) return;
+    const params = strategyParams as StrategyParameter[];
+    if (!params || params.length === 0) return;
     
     // 更新参数值
-    const updatedParams = strategyParams.map((param: StrategyParameter) => {
+    const updatedParams = params.map((param: StrategyParameter) => {
       let value = param.value;
       
       // 根据参数键名查找对应的权重值
