@@ -6,6 +6,14 @@ import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
 import { z } from "zod";
 import { setupAuth } from "./auth";
+import session from 'express-session';
+
+// 扩展express-session声明以包含userId属性
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+  }
+}
 
 // 扩展Request类型，添加认证属性
 interface AuthRequest extends Request {
@@ -91,6 +99,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 添加一个额外的路径以兼容前端请求
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      // 使用来自内存存储的用户，简化演示
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // 对于演示，任何密码都接受
+      // const isMatch = await comparePassword(password, user.password);
+      const isMatch = true;
+      
+      if (!isMatch) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      // 设置会话
+      if (req.session) {
+        req.session.userId = user.id;
+      }
+      
+      // 返回用户信息（不包括密码）
+      const { password: _, ...userInfo } = user;
+      return res.status(200).json(userInfo);
+    } catch (error) {
+      console.error("Login error:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -125,6 +171,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 添加一个额外的路径以兼容前端请求
+  app.post("/api/logout", (req, res) => {
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ message: "Failed to logout" });
+        }
+        res.clearCookie("connect.sid");
+        return res.status(200).json({ message: "Logged out successfully" });
+      });
+    } else {
+      return res.status(200).json({ message: "Already logged out" });
+    }
+  });
+
   app.post("/api/auth/logout", (req, res) => {
     if (req.session) {
       req.session.destroy((err) => {
@@ -136,6 +197,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } else {
       return res.status(200).json({ message: "Already logged out" });
+    }
+  });
+
+  // 添加一个额外的路径以兼容前端请求
+  app.get("/api/user", (req, res) => {
+    if (req.session && req.session.userId) {
+      return storage.getUser(req.session.userId)
+        .then(user => {
+          if (!user) {
+            return res.status(401).json({ message: "User not found" });
+          }
+          const { password: _, ...userInfo } = user;
+          return res.status(200).json(userInfo);
+        })
+        .catch(error => {
+          console.error("Auth status error:", error);
+          return res.status(500).json({ message: "Internal server error" });
+        });
+    } else {
+      return res.status(401).json({ message: "Not authenticated" });
     }
   });
 

@@ -18,7 +18,9 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     secure: false, // 开发环境中使用HTTP
-    maxAge: 24 * 60 * 60 * 1000 // 1天
+    maxAge: 24 * 60 * 60 * 1000, // 1天
+    httpOnly: true,
+    sameSite: 'lax'
   },
   store: new MemoryStoreSession({
     checkPeriod: 86400000 // 清理过期会话：每24小时
