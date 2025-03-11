@@ -1,20 +1,13 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express, Request, Response, NextFunction } from "express";
-import session from "express-session";
 import { storage } from "./storage";
+import { comparePassword } from "./utils/encryption";
 import { User as SelectUser } from "@shared/schema";
 
 declare global {
   namespace Express {
     interface User extends SelectUser {}
-  }
-}
-
-// 扩展 session 定义，添加 userId 字段
-declare module "express-session" {
-  interface SessionData {
-    userId: number;
   }
 }
 
@@ -40,12 +33,11 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid credentials" });
         }
         
-        // 临时解决方案：允许所有密码通过认证
-        // 注意：实际生产环境中应该验证密码
-        // const isMatch = await comparePassword(password, user.password);
-        // if (!isMatch) {
-        //   return done(null, false, { message: "Invalid credentials" });
-        // }
+        // 检查密码
+        const isMatch = await comparePassword(password, user.password);
+        if (!isMatch) {
+          return done(null, false, { message: "Invalid credentials" });
+        }
         
         return done(null, user);
       } catch (error) {
@@ -94,6 +86,9 @@ export function setupAuth(app: Express) {
       req.login(newUser, (err) => {
         if (err) return next(err);
         
+        // 设置会话中的userId (双重保险)
+        req.session.userId = newUser.id;
+        
         // 返回用户信息（不包含密码）
         const { password: _, ...userInfo } = newUser;
         return res.status(201).json(userInfo);
@@ -113,11 +108,13 @@ export function setupAuth(app: Express) {
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
         
-        // 设置会话中的userId
+        // 设置会话中的userId (双重保险)
         req.session.userId = user.id;
         
         console.log("Login success, session ID:", req.session.id);
         console.log("User ID in session:", req.session.userId);
+        console.log("User authenticated:", req.isAuthenticated());
+        console.log("Passport session:", req.session.passport);
         
         // 返回用户信息（不包含密码）
         const { password: _, ...userInfo } = user;
@@ -127,19 +124,59 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req: AuthRequest, res: Response, next: NextFunction) => {
+    // 清除会话中的userId
+    if (req.session) {
+      req.session.userId = undefined;
+    }
+    
     req.logout((err) => {
       if (err) return next(err);
-      res.status(200).json({ message: "Logged out successfully" });
+      
+      // 清除cookie
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) {
+            return res.status(500).json({ message: "Failed to logout" });
+          }
+          res.clearCookie("connect.sid");
+          return res.status(200).json({ message: "Logged out successfully" });
+        });
+      } else {
+        return res.status(200).json({ message: "Logged out successfully" });
+      }
     });
   });
 
   app.get("/api/user", (req: AuthRequest, res: Response) => {
-    if (!req.isAuthenticated()) {
+    console.log("GET /api/user request received");
+    console.log("Session:", req.session);
+    console.log("User ID in session:", req.session?.userId);
+    console.log("isAuthenticated:", req.isAuthenticated());
+    console.log("passport:", req.session?.passport);
+    
+    if (req.isAuthenticated()) {
+      console.log("User is authenticated via passport");
+      const { password: _, ...userInfo } = req.user;
+      return res.status(200).json(userInfo);
+    } else if (req.session && req.session.userId) {
+      console.log("User is authenticated via session userId");
+      return storage.getUser(req.session.userId)
+        .then(user => {
+          if (!user) {
+            console.log("User not found in database for ID:", req.session.userId);
+            return res.status(401).json({ message: "User not found" });
+          }
+          console.log("Found user:", user.id, user.username);
+          const { password: _, ...userInfo } = user;
+          return res.status(200).json(userInfo);
+        })
+        .catch(error => {
+          console.error("Auth status error:", error);
+          return res.status(500).json({ message: "Internal server error" });
+        });
+    } else {
+      console.log("No user authentication found");
       return res.status(401).json({ message: "Not authenticated" });
     }
-    
-    // 返回用户信息（不包含密码）
-    const { password: _, ...userInfo } = req.user;
-    return res.status(200).json(userInfo);
   });
 }

@@ -44,91 +44,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // 添加一个额外的路径以兼容前端请求
-  app.post("/api/logout", (req, res) => {
-    if (req.session) {
-      req.session.destroy((err) => {
-        if (err) {
-          return res.status(500).json({ message: "Failed to logout" });
-        }
-        res.clearCookie("connect.sid");
-        return res.status(200).json({ message: "Logged out successfully" });
-      });
-    } else {
-      return res.status(200).json({ message: "Already logged out" });
-    }
-  });
+  // Authentication endpoints are now handled in auth.ts
 
-  app.post("/api/auth/logout", (req, res) => {
-    if (req.session) {
-      req.session.destroy((err) => {
-        if (err) {
-          return res.status(500).json({ message: "Failed to logout" });
-        }
-        res.clearCookie("connect.sid");
-        return res.status(200).json({ message: "Logged out successfully" });
-      });
-    } else {
-      return res.status(200).json({ message: "Already logged out" });
-    }
-  });
 
-  // 添加一个额外的路径以兼容前端请求
-  app.get("/api/user", (req: any, res) => {
-    console.log("GET /api/user request received");
-    console.log("Session:", req.session);
-    console.log("User ID in session:", req.session?.userId);
-    console.log("isAuthenticated:", req.isAuthenticated?.());
-    console.log("passport:", req.session?.passport);
-    
-    // 首先尝试使用Passport的认证状态
-    if (req.isAuthenticated && req.isAuthenticated()) {
-      console.log("Authentication via passport successful");
-      const { password: _, ...userInfo } = req.user;
-      return res.status(200).json(userInfo);
-    }
-    
-    // 如果失败，尝试使用session中的userId
-    if (req.session && req.session.userId) {
-      console.log("Trying to authenticate via session userId");
-      return storage.getUser(req.session.userId)
-        .then(user => {
-          if (!user) {
-            console.log("User not found in database for ID:", req.session.userId);
-            return res.status(401).json({ message: "User not found" });
-          }
-          console.log("Found user:", user.id, user.username);
-          const { password: _, ...userInfo } = user;
-          return res.status(200).json(userInfo);
-        })
-        .catch(error => {
-          console.error("Auth status error:", error);
-          return res.status(500).json({ message: "Internal server error" });
-        });
-    } else {
-      console.log("No user ID in session");
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-  });
-
-  app.get("/api/auth/status", (req, res) => {
-    if (req.session && req.session.userId) {
-      return storage.getUser(req.session.userId)
-        .then(user => {
-          if (!user) {
-            return res.status(401).json({ message: "User not found" });
-          }
-          const { password: _, ...userInfo } = user;
-          return res.status(200).json(userInfo);
-        })
-        .catch(error => {
-          console.error("Auth status error:", error);
-          return res.status(500).json({ message: "Internal server error" });
-        });
-    } else {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-  });
 
   // Middleware to check authentication
   const checkAuth = (req: any, res: any, next: any) => {
