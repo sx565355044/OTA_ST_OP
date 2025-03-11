@@ -5,19 +5,44 @@ import { StrategyCard } from '@/components/strategies/strategy-card';
 import { StrategyDetailModal } from '@/components/modals/strategy-detail-modal';
 import { ApiKeyModal } from '@/components/modals/api-key-modal';
 import { useToast } from '@/hooks/use-toast';
+import { ButtonFix } from '@/components/ui/button-fix';
 
 export default function Strategies() {
   const { toast } = useToast();
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+  
+  // 定义API状态接口
+  interface ApiKeyStatus {
+    configured: boolean;
+  }
+  
+  // 定义策略接口
+  interface Strategy {
+    id: string;
+    name: string;
+    description: string;
+    isRecommended: boolean;
+    metrics: {
+      projectedGrowth: {
+        value: string;
+        percentage: number;
+        type: string;
+      };
+      complexity: {
+        value: string;
+        percentage: number;
+      };
+    };
+  }
 
   // Get API key status
-  const { data: apiKeyStatus } = useQuery({
+  const { data: apiKeyStatus } = useQuery<ApiKeyStatus>({
     queryKey: ['/api/settings/api-key/status'],
   });
 
   // Fetch strategy recommendations
-  const { data: strategies, isLoading, refetch } = useQuery({
+  const { data: strategies, isLoading, refetch } = useQuery<Strategy[]>({
     queryKey: ['/api/strategies/recommendations'],
     enabled: apiKeyStatus?.configured === true,
   });
@@ -49,21 +74,20 @@ export default function Strategies() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
-              <button
+              <ButtonFix
                 onClick={handleRefresh}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                variant="outline"
                 disabled={!apiKeyStatus?.configured}
+                icon={<span className="material-icons text-sm">refresh</span>}
               >
-                <span className="material-icons text-sm mr-1">refresh</span>
                 刷新策略
-              </button>
-              <button
+              </ButtonFix>
+              <ButtonFix
                 onClick={handleSetApiKey}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                icon={<span className="material-icons text-sm">vpn_key</span>}
               >
-                <span className="material-icons text-sm mr-1">vpn_key</span>
                 {apiKeyStatus?.configured ? '修改API密钥' : '设置API密钥'}
-              </button>
+              </ButtonFix>
             </div>
           </div>
 
@@ -77,12 +101,13 @@ export default function Strategies() {
                   <h3 className="text-sm font-medium text-yellow-800">需要设置API密钥</h3>
                   <div className="mt-2 text-sm text-yellow-700">
                     <p>请设置DeepSeek API密钥以启用智能策略功能。您的API密钥将被安全加密存储。</p>
-                    <button
+                    <ButtonFix
                       onClick={handleSetApiKey}
-                      className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                      className="mt-2 text-xs py-1.5"
+                      style={{ backgroundColor: '#ca8a04', color: 'white' }}
                     >
                       设置API密钥
-                    </button>
+                    </ButtonFix>
                   </div>
                 </div>
               </div>

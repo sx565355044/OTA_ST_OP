@@ -4,18 +4,45 @@ import { queryClient } from '@/lib/queryClient';
 import { Layout } from '@/components/layout/sidebar';
 import { ActivitiesTable } from '@/components/tables/activities-table';
 import { useToast } from '@/hooks/use-toast';
+import { ButtonFix } from '@/components/ui/button-fix';
 
 export default function Activities() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
+  
+  // 定义活动接口
+  interface Activity {
+    id: number;
+    name: string;
+    description: string;
+    platform: {
+      id: number;
+      name: string;
+      shortName?: string;
+    };
+    startDate: string;
+    endDate: string;
+    timeRemaining: string;
+    discount: string;
+    commissionRate: string;
+    status: string;
+    tag?: string;
+  }
+  
+  // 定义平台接口
+  interface Platform {
+    id: number;
+    name: string;
+    shortName?: string;
+  }
 
   // Fetch activities and platforms for filtering
-  const { data: activities, isLoading, refetch } = useQuery({
+  const { data: activities, isLoading, refetch } = useQuery<Activity[]>({
     queryKey: ['/api/activities', { status: statusFilter, platform: platformFilter }],
   });
 
-  const { data: platforms } = useQuery({
+  const { data: platforms } = useQuery<Platform[]>({
     queryKey: ['/api/accounts'],
   });
 
@@ -75,13 +102,13 @@ export default function Activities() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
-              <button 
+              <ButtonFix
                 onClick={handleRefresh}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                variant="outline"
+                icon={<span className="material-icons text-sm">refresh</span>}
               >
-                <span className="material-icons text-sm mr-1">refresh</span>
                 刷新
-              </button>
+              </ButtonFix>
               
               <div className="relative">
                 <select
