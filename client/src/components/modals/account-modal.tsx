@@ -100,15 +100,16 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     }
   }, [accountData, reset, isEditing]);
   
-  // 请求验证码的功能
-  const requestVerificationCode = async (phone: string) => {
+  // 提示用户关于验证码的信息
+  const showVerificationInstruction = async (phone: string) => {
     try {
       setIsLoadingVerification(true);
-      // 这里是模拟请求验证码，在实际环境中会通过API请求发送短信
-      await new Promise(resolve => setTimeout(resolve, 1500)); // 模拟网络延迟
+      // 简单模拟查询延迟
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       toast({
-        title: "验证码已发送",
-        description: `验证码已发送到手机 ${phone}，请输入6位数字验证码`,
+        title: "验证码说明",
+        description: `请查看携程平台发送至手机 ${phone} 的验证码，并在此输入`,
         variant: "default",
       });
       setIsLoadingVerification(false);
@@ -116,8 +117,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     } catch (error) {
       setIsLoadingVerification(false);
       toast({
-        title: "发送验证码失败",
-        description: `无法发送验证码：${error instanceof Error ? error.message : '未知错误'}`,
+        title: "操作失败",
+        description: `发生错误：${error instanceof Error ? error.message : '未知错误'}`,
         variant: "destructive",
       });
       return false;
@@ -181,14 +182,14 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       if (data.verification_method === 'sms' && !isEditing) {
         // 先保存表单数据
         setAccountCreationData(data);
-        // 请求发送验证码
-        const codeRequested = await requestVerificationCode(data.phone_number || '');
-        if (codeRequested) {
+        // 显示验证码说明
+        const instructionShown = await showVerificationInstruction(data.phone_number || '');
+        if (instructionShown) {
           setShowVerificationStep(true);
           // 这里返回一个空对象，因为实际的账户创建会在验证码确认后进行
           return {} as any;
         } else {
-          throw new Error('无法发送验证码');
+          throw new Error('无法继续验证流程');
         }
       }
       
@@ -294,11 +295,11 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         <div className="sm:flex sm:items-start">
           <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
-              输入验证码
+              输入携程验证码
             </h3>
             <div className="mt-2">
               <p className="text-sm text-gray-500">
-                验证码已发送到您的手机 {accountCreationData?.phone_number}，请输入短信中的6位数字验证码
+                请登录携程平台，将平台发送至手机 {accountCreationData?.phone_number} 的验证码输入下方
               </p>
             </div>
             
@@ -317,17 +318,11 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   )}
                 />
               </div>
-              <p className="text-xs text-center text-gray-500 mt-2">
-                未收到验证码？ 
-                <button 
-                  type="button" 
-                  onClick={() => requestVerificationCode(accountCreationData?.phone_number || '')}
-                  disabled={isLoadingVerification}
-                  className="text-primary-600 hover:text-primary-800 ml-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  重新发送
-                </button>
-              </p>
+              <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
+                <p className="text-sm text-amber-800">
+                  <strong>提示：</strong> 您需要先在携程商家平台上尝试登录，系统会自动向您注册的手机号发送验证码。请在收到短信后回到此处输入验证码。
+                </p>
+              </div>
             </div>
           </div>
         </div>
