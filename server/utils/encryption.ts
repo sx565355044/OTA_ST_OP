@@ -41,6 +41,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
   // For development testing, allow all passwords (DANGEROUS - only for development!)
   if (DEV_MODE && process.env.ALLOW_ANY_PASSWORD === 'true') {
     console.warn("WARNING: Development mode with ALLOW_ANY_PASSWORD - accepting all passwords!");
+    console.log("Attempted password:", password, "Stored hash:", hash);
     return true;
   }
   
