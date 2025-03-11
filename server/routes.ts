@@ -993,6 +993,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 携程商家平台登录相关的API路由
+  app.post("/api/ctrip-auth/init", checkAuth, async (req, res) => {
+    try {
+      await ctripLoginService.navigateToLoginPage();
+      return res.status(200).json({
+        success: true,
+        message: '已成功打开携程登录页面',
+        state: ctripLoginService.getLoginState()
+      });
+    } catch (error) {
+      console.error("[CtripAuth] 初始化登录失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: `初始化登录流程失败: ${error instanceof Error ? error.message : String(error)}`,
+        state: ctripLoginService.getLoginState()
+      });
+    }
+  });
+
+  app.post("/api/ctrip-auth/credentials", checkAuth, async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({
+          success: false,
+          message: '用户名和密码不能为空',
+          state: ctripLoginService.getLoginState()
+        });
+      }
+      
+      await ctripLoginService.enterCredentials(username, password);
+      await ctripLoginService.submitCredentialsAndWaitForSmsVerification();
+      
+      const state = ctripLoginService.getLoginState();
+      if (state === 'sms_sent') {
+        return res.status(200).json({
+          success: true,
+          message: '已成功提交凭据，等待短信验证码',
+          state,
+          requiresSms: true
+        });
+      } else if (state === 'logged_in') {
+        const cookies = ctripLoginService.getEncryptedCookiesString();
+        return res.status(200).json({
+          success: true,
+          message: '已成功登录，无需短信验证',
+          state,
+          requiresSms: false,
+          cookies
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: '提交凭据后登录状态异常',
+          state
+        });
+      }
+    } catch (error) {
+      console.error("[CtripAuth] 提交凭据失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: `提交凭据失败: ${error instanceof Error ? error.message : String(error)}`,
+        state: ctripLoginService.getLoginState()
+      });
+    }
+  });
+
+  app.post("/api/ctrip-auth/verify-sms", checkAuth, async (req, res) => {
+    try {
+      const { smsCode } = req.body;
+      
+      if (!smsCode || !/^\d{6}$/.test(smsCode)) {
+        return res.status(400).json({
+          success: false,
+          message: '无效的验证码格式，必须是6位数字',
+          state: ctripLoginService.getLoginState()
+        });
+      }
+      
+      await ctripLoginService.enterSmsVerificationCode(smsCode);
+      
+      const state = ctripLoginService.getLoginState();
+      if (state === 'logged_in') {
+        const cookies = ctripLoginService.getEncryptedCookiesString();
+        return res.status(200).json({
+          success: true,
+          message: '短信验证成功，已成功登录',
+          state,
+          cookies
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: '短信验证后登录状态异常',
+          state
+        });
+      }
+    } catch (error) {
+      console.error("[CtripAuth] 验证短信失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: `验证短信失败: ${error instanceof Error ? error.message : String(error)}`,
+        state: ctripLoginService.getLoginState()
+      });
+    }
+  });
+
+  app.get("/api/ctrip-auth/status", checkAuth, (req, res) => {
+    const state = ctripLoginService.getLoginState();
+    const isLoggedIn = state === 'logged_in';
+    
+    return res.status(200).json({
+      success: true,
+      state,
+      isLoggedIn
+    });
+  });
+
+  app.post("/api/ctrip-auth/close", checkAuth, async (req, res) => {
+    try {
+      await ctripLoginService.close();
+      return res.status(200).json({
+        success: true,
+        message: '浏览器会话已关闭'
+      });
+    } catch (error) {
+      console.error("[CtripAuth] 关闭会话失败:", error);
+      return res.status(500).json({
+        success: false,
+        message: `关闭会话失败: ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  });
+
   return httpServer;
 }
 
