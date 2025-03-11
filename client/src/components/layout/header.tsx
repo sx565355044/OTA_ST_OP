@@ -1,5 +1,8 @@
 import React from 'react';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
 interface HeaderProps {
   toggleMobileMenu: () => void;
@@ -7,6 +10,7 @@ interface HeaderProps {
 
 export function Header({ toggleMobileMenu }: HeaderProps) {
   const [location] = useLocation();
+  const { user, logout } = useAuth();
   
   // Map routes to page titles
   const getPageTitle = (path: string): string => {
@@ -56,6 +60,19 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
               <span className="sr-only">帮助</span>
               <span className="material-icons">help_outline</span>
             </button>
+            
+            {user && (
+              <div className="flex items-center gap-2">
+                <div className="hidden md:block text-sm text-gray-700">
+                  <span className="font-medium">{user.fullName || user.username}</span>
+                  <span className="text-xs text-gray-500 block">{user.hotel}</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => logout()}>
+                  <LogOut className="h-4 w-4" />
+                  <span className="sr-only">注销</span>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

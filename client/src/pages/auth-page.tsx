@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -38,11 +38,12 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [_, navigate] = useLocation();
   
-  // 如果用户已登录，重定向到首页
-  if (user) {
-    navigate("/");
-    return null;
-  }
+  // 如果用户已登录，使用useEffect进行重定向
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   // 登录表单状态
   const [loginForm, setLoginForm] = useState({
