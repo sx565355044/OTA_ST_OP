@@ -296,14 +296,13 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   maxLength={6}
                   value={verificationCode}
                   onChange={setVerificationCode}
-                  render={({ slots }) => (
-                    <InputOTPGroup>
-                      {slots.map((slot, index) => (
-                        <InputOTPSlot key={index} {...slot} index={index} className="w-12 h-12 text-xl" />
-                      ))}
-                    </InputOTPGroup>
-                  )}
-                />
+                >
+                  <InputOTPGroup>
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <InputOTPSlot key={index} index={index} className="w-12 h-12 text-xl" />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
               </div>
               <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
                 <p className="text-sm text-amber-800">
