@@ -9,35 +9,22 @@ import Activities from "@/pages/activities";
 import Strategies from "@/pages/strategies";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
-import Login from "@/pages/login";
-import Register from "@/pages/register";
 import Admin from "@/pages/admin";
-import { AuthProvider } from "./contexts/AuthContext";
-import { useAuth } from "@/hooks/use-auth";
+import AuthPage from "@/pages/auth-page";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 function Router() {
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return (
-      <Switch>
-        <Route path="/" component={Login} />
-        <Route path="/register" component={Register} />
-        <Route path="/login" component={Login} />
-        <Route path="*" component={Login} />
-      </Switch>
-    );
-  }
-
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/accounts" component={Accounts} />
-      <Route path="/activities" component={Activities} />
-      <Route path="/strategies" component={Strategies} />
-      <Route path="/history" component={History} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/admin" component={Admin} />
+      <ProtectedRoute path="/" component={Dashboard} />
+      <ProtectedRoute path="/accounts" component={Accounts} />
+      <ProtectedRoute path="/activities" component={Activities} />
+      <ProtectedRoute path="/strategies" component={Strategies} />
+      <ProtectedRoute path="/history" component={History} />
+      <ProtectedRoute path="/settings" component={Settings} />
+      <ProtectedRoute path="/admin" component={Admin} />
+      <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );

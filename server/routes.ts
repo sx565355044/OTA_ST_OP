@@ -5,20 +5,14 @@ import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
 import { z } from "zod";
+import { setupAuth } from "./auth";
 
-// 扩展Request类型，添加session属性
-declare module 'express-session' {
-  interface SessionData {
-    userId: number;
-  }
-}
-
-// 扩展Express Request类型
+// 扩展Request类型，添加认证属性
 interface AuthRequest extends Request {
-  session: {
-    userId?: number;
-    destroy: (callback: (err?: any) => void) => void;
-  };
+  isAuthenticated(): boolean;
+  user?: any;
+  login(user: any, callback: (err: any) => void): void;
+  logout(callback: (err: any) => void): void;
 }
 import { 
   insertUserSchema, 
@@ -34,6 +28,9 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize HTTP server
   const httpServer = createServer(app);
+  
+  // 设置认证
+  setupAuth(app);
 
   // Authentication routes
   // Register new hotel manager
