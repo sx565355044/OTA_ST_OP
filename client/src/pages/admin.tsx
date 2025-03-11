@@ -37,6 +37,8 @@ export default function Admin() {
   const [, setLocation] = useLocation();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('standard');
+  const [editingPreset, setEditingPreset] = useState<string | null>(null);
+  const [editedPresetValues, setEditedPresetValues] = useState<any>(null);
   
   // 检查用户是否有管理员权限
   useEffect(() => {
@@ -226,6 +228,65 @@ export default function Admin() {
     }
   };
   
+  // 开始编辑预设
+  const startEditPreset = (presetKey: string) => {
+    // 保存当前正在编辑的预设的键
+    setEditingPreset(presetKey);
+    
+    // 获取所选的预设的当前值并设置为编辑值
+    const preset = paramPresets[presetKey as keyof typeof paramPresets];
+    setEditedPresetValues({ ...preset });
+  };
+  
+  // 编辑预设参数值
+  const handlePresetParamChange = (paramKey: string, value: number) => {
+    if (!editedPresetValues) return;
+    
+    setEditedPresetValues({
+      ...editedPresetValues,
+      [paramKey]: value
+    });
+  };
+  
+  // 保存编辑后的预设
+  const saveEditedPreset = () => {
+    if (!editingPreset || !editedPresetValues) return;
+    
+    // 实际实现中应该将更新的预设保存到服务器
+    // 这里我们只在前端更新
+    // paramPresets[editingPreset as keyof typeof paramPresets] = editedPresetValues;
+    
+    // 应用更新后的预设
+    if (!strategyParams || strategyParams.length === 0) return;
+    
+    const updatedParams = strategyParams.map((param: StrategyParameter) => {
+      const paramKey = param.key;
+      if (editedPresetValues[paramKey] !== undefined) {
+        return { ...param, value: editedPresetValues[paramKey] };
+      }
+      return param;
+    });
+    
+    // 应用更新
+    updateParamsMutation.mutate(updatedParams);
+    
+    toast({
+      title: "预设已保存并应用",
+      description: "已成功更新并应用预设参数配置",
+      variant: "success",
+    });
+    
+    // 退出编辑模式
+    setEditingPreset(null);
+    setEditedPresetValues(null);
+  };
+  
+  // 取消编辑
+  const cancelEditPreset = () => {
+    setEditingPreset(null);
+    setEditedPresetValues(null);
+  };
+  
   // 应用预设参数
   const applyPreset = (presetKey: string) => {
     if (!strategyParams || strategyParams.length === 0) return;
@@ -342,93 +403,573 @@ export default function Admin() {
                     </p>
                     
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      {/* 关注远期预定 */}
-                      <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 text-primary-600">
-                            <span className="material-icons">date_range</span>
+                      {/* 预设卡片：关注远期预定 */}
+                      {editingPreset === 'longTerm' ? (
+                        <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
+                          <div className="flex items-center mb-4">
+                            <div className="flex-shrink-0 text-primary-600">
+                              <span className="material-icons">date_range</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">编辑：关注远期预定</h3>
+                              <p className="text-sm text-gray-500">调整各参数的权重值（0-10）</p>
+                            </div>
                           </div>
-                          <div className="ml-4 flex-1">
-                            <h3 className="text-base font-medium text-gray-900 mb-1">关注远期预定</h3>
-                            <p className="text-sm text-gray-500">优先考虑长期预订周期和未来收益</p>
+                          
+                          {/* 编辑预设参数的滑块 */}
+                          <div className="space-y-4 mb-4">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">长期预订</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.longTermBooking}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.longTermBooking || 0}
+                                onChange={(e) => handlePresetParamChange('longTermBooking', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">成本效率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.costEfficiency}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.costEfficiency || 0}
+                                onChange={(e) => handlePresetParamChange('costEfficiency', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">展示优化</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.visibility}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.visibility || 0}
+                                onChange={(e) => handlePresetParamChange('visibility', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">入住率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.occupancyRate}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.occupancyRate || 0}
+                                onChange={(e) => handlePresetParamChange('occupancyRate', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">收益</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.revenue || 0}
+                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex space-x-2">
+                            <ButtonFix
+                              onClick={saveEditedPreset}
+                              className="flex-1"
+                              icon={<span className="material-icons text-sm">save</span>}
+                            >
+                              保存并应用
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={cancelEditPreset}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              取消
+                            </ButtonFix>
                           </div>
                         </div>
-                        <div className="mt-4">
-                          <ButtonFix
-                            onClick={() => applyPreset('longTerm')}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            应用此预设
-                          </ButtonFix>
+                      ) : (
+                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 text-primary-600">
+                              <span className="material-icons">date_range</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">关注远期预定</h3>
+                              <p className="text-sm text-gray-500">优先考虑长期预订周期和未来收益</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <ButtonFix
+                              onClick={() => applyPreset('longTerm')}
+                              variant="outline"
+                            >
+                              应用此预设
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={() => startEditPreset('longTerm')}
+                              variant="outline"
+                              icon={<span className="material-icons text-sm">edit</span>}
+                            >
+                              编辑参数
+                            </ButtonFix>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       
-                      {/* 关注成本最小 */}
-                      <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 text-green-600">
-                            <span className="material-icons">savings</span>
+                      {/* 预设卡片：关注成本最小 */}
+                      {editingPreset === 'minCost' ? (
+                        <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
+                          <div className="flex items-center mb-4">
+                            <div className="flex-shrink-0 text-green-600">
+                              <span className="material-icons">savings</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">编辑：关注成本最小</h3>
+                              <p className="text-sm text-gray-500">调整各参数的权重值（0-10）</p>
+                            </div>
                           </div>
-                          <div className="ml-4 flex-1">
-                            <h3 className="text-base font-medium text-gray-900 mb-1">关注成本最小</h3>
-                            <p className="text-sm text-gray-500">优先考虑佣金成本和投入产出比</p>
+                          
+                          {/* 编辑预设参数的滑块 */}
+                          <div className="space-y-4 mb-4">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">长期预订</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.longTermBooking}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.longTermBooking || 0}
+                                onChange={(e) => handlePresetParamChange('longTermBooking', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">成本效率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.costEfficiency}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.costEfficiency || 0}
+                                onChange={(e) => handlePresetParamChange('costEfficiency', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">展示优化</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.visibility}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.visibility || 0}
+                                onChange={(e) => handlePresetParamChange('visibility', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">入住率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.occupancyRate}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.occupancyRate || 0}
+                                onChange={(e) => handlePresetParamChange('occupancyRate', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">收益</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.revenue || 0}
+                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex space-x-2">
+                            <ButtonFix
+                              onClick={saveEditedPreset}
+                              className="flex-1"
+                              icon={<span className="material-icons text-sm">save</span>}
+                            >
+                              保存并应用
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={cancelEditPreset}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              取消
+                            </ButtonFix>
                           </div>
                         </div>
-                        <div className="mt-4">
-                          <ButtonFix
-                            onClick={() => applyPreset('minCost')}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            应用此预设
-                          </ButtonFix>
+                      ) : (
+                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 text-green-600">
+                              <span className="material-icons">savings</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">关注成本最小</h3>
+                              <p className="text-sm text-gray-500">优先考虑佣金成本和投入产出比</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <ButtonFix
+                              onClick={() => applyPreset('minCost')}
+                              variant="outline"
+                            >
+                              应用此预设
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={() => startEditPreset('minCost')}
+                              variant="outline"
+                              icon={<span className="material-icons text-sm">edit</span>}
+                            >
+                              编辑参数
+                            </ButtonFix>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       
-                      {/* 关注展示最优化 */}
-                      <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 text-indigo-600">
-                            <span className="material-icons">visibility</span>
+                      {/* 预设卡片：关注展示最优化 */}
+                      {editingPreset === 'maxVisibility' ? (
+                        <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
+                          <div className="flex items-center mb-4">
+                            <div className="flex-shrink-0 text-indigo-600">
+                              <span className="material-icons">visibility</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">编辑：关注展示最优化</h3>
+                              <p className="text-sm text-gray-500">调整各参数的权重值（0-10）</p>
+                            </div>
                           </div>
-                          <div className="ml-4 flex-1">
-                            <h3 className="text-base font-medium text-gray-900 mb-1">关注展示最优化</h3>
-                            <p className="text-sm text-gray-500">优先考虑平台展示位置和流量</p>
+                          
+                          {/* 编辑预设参数的滑块 */}
+                          <div className="space-y-4 mb-4">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">长期预订</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.longTermBooking}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.longTermBooking || 0}
+                                onChange={(e) => handlePresetParamChange('longTermBooking', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">成本效率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.costEfficiency}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.costEfficiency || 0}
+                                onChange={(e) => handlePresetParamChange('costEfficiency', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">展示优化</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.visibility}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.visibility || 0}
+                                onChange={(e) => handlePresetParamChange('visibility', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">入住率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.occupancyRate}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.occupancyRate || 0}
+                                onChange={(e) => handlePresetParamChange('occupancyRate', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">收益</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.revenue || 0}
+                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex space-x-2">
+                            <ButtonFix
+                              onClick={saveEditedPreset}
+                              className="flex-1"
+                              icon={<span className="material-icons text-sm">save</span>}
+                            >
+                              保存并应用
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={cancelEditPreset}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              取消
+                            </ButtonFix>
                           </div>
                         </div>
-                        <div className="mt-4">
-                          <ButtonFix
-                            onClick={() => applyPreset('maxVisibility')}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            应用此预设
-                          </ButtonFix>
+                      ) : (
+                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 text-indigo-600">
+                              <span className="material-icons">visibility</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">关注展示最优化</h3>
+                              <p className="text-sm text-gray-500">优先考虑平台展示位置和流量</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <ButtonFix
+                              onClick={() => applyPreset('maxVisibility')}
+                              variant="outline"
+                            >
+                              应用此预设
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={() => startEditPreset('maxVisibility')}
+                              variant="outline"
+                              icon={<span className="material-icons text-sm">edit</span>}
+                            >
+                              编辑参数
+                            </ButtonFix>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       
-                      {/* 关注当日OCC */}
-                      <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 text-orange-600">
-                            <span className="material-icons">hotel</span>
+                      {/* 预设卡片：关注当日OCC */}
+                      {editingPreset === 'dailyOcc' ? (
+                        <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
+                          <div className="flex items-center mb-4">
+                            <div className="flex-shrink-0 text-orange-600">
+                              <span className="material-icons">hotel</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">编辑：关注当日OCC</h3>
+                              <p className="text-sm text-gray-500">调整各参数的权重值（0-10）</p>
+                            </div>
                           </div>
-                          <div className="ml-4 flex-1">
-                            <h3 className="text-base font-medium text-gray-900 mb-1">关注当日OCC</h3>
-                            <p className="text-sm text-gray-500">优先考虑入住率和短期收益</p>
+                          
+                          {/* 编辑预设参数的滑块 */}
+                          <div className="space-y-4 mb-4">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">长期预订</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.longTermBooking}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.longTermBooking || 0}
+                                onChange={(e) => handlePresetParamChange('longTermBooking', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">成本效率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.costEfficiency}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.costEfficiency || 0}
+                                onChange={(e) => handlePresetParamChange('costEfficiency', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">展示优化</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.visibility}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.visibility || 0}
+                                onChange={(e) => handlePresetParamChange('visibility', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">入住率</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.occupancyRate}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.occupancyRate || 0}
+                                onChange={(e) => handlePresetParamChange('occupancyRate', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                            
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <label className="block text-sm font-medium text-gray-700">收益</label>
+                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                step="1"
+                                value={editedPresetValues?.revenue || 0}
+                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
+                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex space-x-2">
+                            <ButtonFix
+                              onClick={saveEditedPreset}
+                              className="flex-1"
+                              icon={<span className="material-icons text-sm">save</span>}
+                            >
+                              保存并应用
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={cancelEditPreset}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              取消
+                            </ButtonFix>
                           </div>
                         </div>
-                        <div className="mt-4">
-                          <ButtonFix
-                            onClick={() => applyPreset('dailyOcc')}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            应用此预设
-                          </ButtonFix>
+                      ) : (
+                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 text-orange-600">
+                              <span className="material-icons">hotel</span>
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h3 className="text-base font-medium text-gray-900 mb-1">关注当日OCC</h3>
+                              <p className="text-sm text-gray-500">优先考虑入住率和短期收益</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <ButtonFix
+                              onClick={() => applyPreset('dailyOcc')}
+                              variant="outline"
+                            >
+                              应用此预设
+                            </ButtonFix>
+                            <ButtonFix
+                              onClick={() => startEditPreset('dailyOcc')}
+                              variant="outline"
+                              icon={<span className="material-icons text-sm">edit</span>}
+                            >
+                              编辑参数
+                            </ButtonFix>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
