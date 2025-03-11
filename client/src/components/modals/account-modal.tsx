@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { OtaAccount } from '@/../../shared/schema';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -17,8 +18,21 @@ const accountSchema = z.object({
   platform_url: z.string().url('请输入有效的URL地址'),
   username: z.string().min(1, '请输入用户名'),
   password: z.string().min(1, '请输入密码'),
+  verification_method: z.string(),
+  phone_number: z.string().optional().refine(
+    val => val === undefined || val === '' || /^1[3-9]\d{9}$/.test(val),
+    {
+      message: '请输入有效的手机号码',
+    }
+  ),
   account_type: z.string().min(1, '请选择账户类型'),
-});
+}).refine(
+  data => !(data.verification_method === 'sms' && (!data.phone_number || data.phone_number.trim() === '')), 
+  {
+    message: '选择手机验证码时，请输入手机号',
+    path: ['phone_number']
+  }
+);
 
 type AccountFormValues = z.infer<typeof accountSchema>;
 
@@ -36,6 +50,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     register,
     handleSubmit,
     reset,
+    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
@@ -44,19 +60,27 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       platform_url: '',
       username: '',
       password: '',
+      verification_method: 'none',
+      phone_number: '',
       account_type: '商家账户',
     },
   });
   
+  // Watch the verification method to show/hide phone number field
+  const verificationMethod = watch('verification_method');
+  
   // Set form values when account data is loaded
   useEffect(() => {
-    if (accountData) {
+    if (accountData && typeof accountData === 'object') {
+      const account = accountData as any; // 临时解决类型问题
       reset({
-        platform_name: accountData.name,
-        platform_url: accountData.url,
-        username: accountData.username,
+        platform_name: account.name || '',
+        platform_url: account.url || '',
+        username: account.username || '',
         password: '', // Don't show the actual password
-        account_type: accountData.type,
+        verification_method: account.verificationMethod || 'none',
+        phone_number: account.phoneNumber || '',
+        account_type: account.accountType || '商家账户',
       });
     } else if (!isEditing) {
       reset({
@@ -64,6 +88,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         platform_url: '',
         username: '',
         password: '',
+        verification_method: 'none',
+        phone_number: '',
         account_type: '商家账户',
       });
     }
@@ -88,6 +114,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           url: data.platform_url,
           username: data.username,
           password: data.password,
+          verificationMethod: data.verification_method,
+          phoneNumber: data.verification_method === 'sms' ? data.phone_number : null,
           type: data.account_type,
         }),
         credentials: 'include',
@@ -206,6 +234,38 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                         )}
                       </div>
                       
+                      <div>
+                        <label htmlFor="verification_method" className="block text-sm font-medium text-gray-700">验证方式</label>
+                        <select
+                          {...register('verification_method')}
+                          id="verification_method"
+                          className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                        >
+                          <option value="none">无需验证</option>
+                          <option value="sms">短信验证码</option>
+                          <option value="email">邮箱验证码</option>
+                          <option value="captcha">图形验证码</option>
+                        </select>
+                      </div>
+                      
+                      {verificationMethod === 'sms' && (
+                        <div>
+                          <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">手机号</label>
+                          <input
+                            {...register('phone_number')}
+                            id="phone_number"
+                            className="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            placeholder="请输入接收验证码的手机号"
+                          />
+                          {errors.phone_number && (
+                            <p className="mt-1 text-sm text-red-600">{errors.phone_number.message}</p>
+                          )}
+                          <p className="mt-1 text-xs text-gray-500">
+                            登录携程平台时，系统将自动发送验证码到此手机号
+                          </p>
+                        </div>
+                      )}
+
                       <div>
                         <label htmlFor="account_type" className="block text-sm font-medium text-gray-700">账户类型</label>
                         <select

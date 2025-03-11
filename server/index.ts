@@ -9,10 +9,13 @@ import dotenv from "dotenv";
 // 加载环境变量
 dotenv.config();
 
-// 声明session中的userId
+// 声明session中的userId和passport
 declare module 'express-session' {
   interface SessionData {
     userId: number;
+    passport?: {
+      user: number | string;
+    };
   }
 }
 
@@ -59,7 +62,7 @@ app.use((req, res, next) => {
   console.log("Session ID:", req.session.id);
   console.log("Session User ID:", req.session.userId);
   console.log("Is Authenticated:", req.isAuthenticated?.());
-  console.log("Passport session:", req.session.passport);
+  console.log("Passport session:", (req.session as any).passport);
   next();
 });
 
@@ -113,9 +116,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use environment variable for port with fallback to 3000
+  // Use environment variable for port with fallback to 5000
   // this serves both the API and the client
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 5000;
   server.listen({
     port,
     host: "0.0.0.0", // Listen on all interfaces
