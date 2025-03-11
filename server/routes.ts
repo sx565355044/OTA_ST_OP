@@ -1,10 +1,25 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "./utils/encryption";
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
 import { z } from "zod";
+
+// 扩展Request类型，添加session属性
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+  }
+}
+
+// 扩展Express Request类型
+interface AuthRequest extends Request {
+  session: {
+    userId?: number;
+    destroy: (callback: (err?: any) => void) => void;
+  };
+}
 import { 
   insertUserSchema, 
   insertOtaAccountSchema, 
@@ -22,7 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Authentication routes
   // Register new hotel manager
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", async (req: AuthRequest, res: Response) => {
     try {
       const { username, password, hotel, fullName } = req.body;
       

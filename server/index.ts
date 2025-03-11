@@ -1,10 +1,29 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import session from "express-session";
+import MemoryStore from "memorystore";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// 创建内存会话存储
+const MemoryStoreSession = MemoryStore(session);
+
+// 设置Session
+app.use(session({
+  secret: "otainsight_secret_key",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: false, // 开发环境中使用HTTP
+    maxAge: 24 * 60 * 60 * 1000 // 1天
+  },
+  store: new MemoryStoreSession({
+    checkPeriod: 86400000 // 清理过期会话：每24小时
+  })
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();
