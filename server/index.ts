@@ -14,11 +14,11 @@ const MemoryStoreSession = MemoryStore(session);
 // 设置Session
 app.use(session({
   secret: "otainsight_secret_key",
-  resave: true,
-  saveUninitialized: true,
+  resave: false,
+  saveUninitialized: false,
   cookie: { 
     secure: false, // 开发环境中使用HTTP
-    maxAge: 24 * 60 * 60 * 1000, // 1天
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
     httpOnly: true,
     sameSite: 'lax',
     path: '/'
@@ -27,6 +27,14 @@ app.use(session({
     checkPeriod: 86400000 // 清理过期会话：每24小时
   })
 }));
+
+// 添加调试中间件
+app.use((req, res, next) => {
+  console.log("Session ID:", req.session.id);
+  console.log("Session User ID:", req.session.userId);
+  console.log("Is Authenticated:", req.isAuthenticated?.());
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -13,7 +13,7 @@ declare global {
 }
 
 export function setupAuth(app: Express) {
-  // 设置 Passport.js 认证
+  // 设置 Passport.js 认证（必须在session中间件之后设置）
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -97,6 +97,12 @@ export function setupAuth(app: Express) {
       
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
+        
+        // 设置会话中的userId
+        req.session.userId = user.id;
+        
+        console.log("Login success, session ID:", req.session.id);
+        console.log("User ID in session:", req.session.userId);
         
         // 返回用户信息（不包含密码）
         const { password: _, ...userInfo } = user;
