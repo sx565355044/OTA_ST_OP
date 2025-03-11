@@ -14,13 +14,14 @@ const MemoryStoreSession = MemoryStore(session);
 // 设置Session
 app.use(session({
   secret: "otainsight_secret_key",
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   cookie: { 
     secure: false, // 开发环境中使用HTTP
     maxAge: 24 * 60 * 60 * 1000, // 1天
     httpOnly: true,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    path: '/'
   },
   store: new MemoryStoreSession({
     checkPeriod: 86400000 // 清理过期会话：每24小时
