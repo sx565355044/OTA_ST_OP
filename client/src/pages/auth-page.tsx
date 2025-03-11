@@ -60,6 +60,7 @@ export default function AuthPage() {
     confirmPassword: "",
     hotel: "",
     role: "manager" as const,
+    // Removed fullName as it's not in the schema
   });
 
   // 处理登录表单变化
@@ -230,16 +231,7 @@ export default function AuthPage() {
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">姓名</Label>
-                      <Input 
-                        id="fullName"
-                        name="fullName"
-                        placeholder="您的姓名（选填）" 
-                        value={registerForm.fullName}
-                        onChange={handleRegisterChange}
-                      />
-                    </div>
+                    {/* 姓名字段移除，不在用户模型中 */}
                     <div className="space-y-2">
                       <Label htmlFor="hotel">酒店名称</Label>
                       <Input 
