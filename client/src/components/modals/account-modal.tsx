@@ -348,6 +348,13 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
             </div>
             
             <div className="mt-6 space-y-4">
+              {accountCreationData?.phone_number && (
+                <div className="text-center mb-2">
+                  <p className="text-sm text-gray-600">
+                    验证码将发送到手机号 <span className="font-medium text-gray-800">{accountCreationData.phone_number}</span>
+                  </p>
+                </div>
+              )}
               <div className="flex justify-center mb-4">
                 <InputOTP
                   maxLength={6}
