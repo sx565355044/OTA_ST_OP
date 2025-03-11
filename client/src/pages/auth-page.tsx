@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { z } from "zod";
@@ -34,7 +34,7 @@ const registerSchema = insertUserSchema.pick({
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("login");
-  const { loginMutation, registerMutation, user } = useAuth();
+  const { login, register, user } = useAuth();
   const { toast } = useToast();
   const [_, navigate] = useLocation();
   
@@ -81,10 +81,7 @@ export default function AuthPage() {
       
       // 提交登录
       setIsLoading(true);
-      await loginMutation.mutateAsync({
-        username: loginForm.username,
-        password: loginForm.password,
-      });
+      await login(loginForm.username, loginForm.password);
       
       // 登录成功，跳转到首页
       navigate("/");
@@ -119,7 +116,7 @@ export default function AuthPage() {
       
       // 提交注册
       setIsLoading(true);
-      await registerMutation.mutateAsync({
+      await register({
         username: registerForm.username,
         password: registerForm.password,
         hotel: registerForm.hotel,
