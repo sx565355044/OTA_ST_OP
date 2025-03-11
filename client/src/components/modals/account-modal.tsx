@@ -139,7 +139,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           username: accountData.username,
           password: accountData.password,
           verificationMethod: accountData.verification_method,
-          phoneNumber: accountData.verification_method === 'sms' ? accountData.phone_number : null,
           type: accountData.account_type,
           // 在实际实现中，也可以将验证码传给后端进行二次验证
           verificationCode: code
@@ -199,7 +198,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           url: data.platform_url,
           username: data.username,
           password: data.password,
-          verificationMethod: data.verification_method,
           verificationMethod: data.verification_method,
           type: data.account_type,
         }),
