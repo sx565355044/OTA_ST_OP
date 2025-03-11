@@ -125,7 +125,7 @@ export class MemStorage implements IStorage {
     const admin: User = { 
       id: adminId,
       username: "admin",
-      password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // password: admin
+      password: "$2b$10$R5E0QRhPKBkSH8YcM/OMjeKJRlPUz3HJE6/kpOOFu4SvOlr3DC1HG", // password: admin123
       role: "admin",
       hotel: "星星酒店集团",
       createdAt: now

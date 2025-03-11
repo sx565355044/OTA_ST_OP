@@ -64,7 +64,7 @@ export function Header({ toggleMobileMenu }: HeaderProps) {
             {user && (
               <div className="flex items-center gap-2">
                 <div className="hidden md:block text-sm text-gray-700">
-                  <span className="font-medium">{user.fullName || user.username}</span>
+                  <span className="font-medium">{user.username}</span>
                   <span className="text-xs text-gray-500 block">{user.hotel}</span>
                 </div>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => logout()}>
