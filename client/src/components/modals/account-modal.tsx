@@ -322,6 +322,18 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                 <p className="text-sm text-amber-800">
                   <strong>提示：</strong> 您需要先在携程商家平台上尝试登录，系统会自动向您注册的手机号发送验证码。请在收到短信后回到此处输入验证码。
                 </p>
+                <div className="mt-2 text-right">
+                  <button 
+                    type="button" 
+                    onClick={handleCancelVerification}
+                    className="text-amber-800 text-xs hover:underline inline-flex items-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    重新尝试登录获取验证码
+                  </button>
+                </div>
               </div>
             </div>
           </div>
