@@ -125,7 +125,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 设置会话
       if (req.session) {
+        console.log("Setting userId in session:", user.id);
         req.session.userId = user.id;
+        // Force session save
+        req.session.save(err => {
+          if (err) {
+            console.error("Session save error:", err);
+          }
+        });
+      } else {
+        console.error("No session object available");
       }
       
       // 返回用户信息（不包括密码）
