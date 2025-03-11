@@ -11,7 +11,8 @@ import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import Admin from "@/pages/admin";
-import { useAuth, AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { useAuth } from "@/hooks/use-auth";
 
 function Router() {
   const { isAuthenticated } = useAuth();
