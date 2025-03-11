@@ -20,20 +20,9 @@ const accountSchema = z.object({
   username: z.string().min(1, '请输入用户名'),
   password: z.string().min(1, '请输入密码'),
   verification_method: z.string(),
-  phone_number: z.string().optional().refine(
-    val => val === undefined || val === '' || /^1[3-9]\d{9}$/.test(val),
-    {
-      message: '请输入有效的手机号码',
-    }
-  ),
+  phone_number: z.string().optional(),
   account_type: z.string().min(1, '请选择账户类型'),
-}).refine(
-  data => !(data.verification_method === 'sms' && (!data.phone_number || data.phone_number.trim() === '')), 
-  {
-    message: '选择手机验证码时，请输入手机号',
-    path: ['phone_number']
-  }
-);
+});
 
 type AccountFormValues = z.infer<typeof accountSchema>;
 
@@ -101,7 +90,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   }, [accountData, reset, isEditing]);
   
   // 提示用户关于验证码的信息
-  const showVerificationInstruction = async (phone: string) => {
+  const showVerificationInstruction = async () => {
     try {
       setIsLoadingVerification(true);
       // 简单模拟查询延迟
@@ -109,7 +98,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       
       toast({
         title: "验证码说明",
-        description: `请查看携程平台发送至手机 ${phone} 的验证码，并在此输入`,
+        description: "请前往携程商家平台获取验证码，然后在此输入",
         variant: "default",
       });
       setIsLoadingVerification(false);
@@ -183,7 +172,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         // 先保存表单数据
         setAccountCreationData(data);
         // 显示验证码说明
-        const instructionShown = await showVerificationInstruction(data.phone_number || '');
+        const instructionShown = await showVerificationInstruction();
         if (instructionShown) {
           setShowVerificationStep(true);
           // 这里返回一个空对象，因为实际的账户创建会在验证码确认后进行
@@ -211,7 +200,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           username: data.username,
           password: data.password,
           verificationMethod: data.verification_method,
-          phoneNumber: data.verification_method === 'sms' ? data.phone_number : null,
+          verificationMethod: data.verification_method,
           type: data.account_type,
         }),
         credentials: 'include',
@@ -299,7 +288,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
             </h3>
             <div className="mt-2">
               <p className="text-sm text-gray-500">
-                请登录携程平台，将平台发送至手机 {accountCreationData?.phone_number} 的验证码输入下方
+                请在携程平台选择"SMS Code"登录选项，获取发送到您注册手机的验证码并输入下方
               </p>
             </div>
             
@@ -320,9 +309,16 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
               </div>
               <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
                 <p className="text-sm text-amber-800">
-                  <strong>提示：</strong> 您需要先在携程商家平台上尝试登录，系统会自动向您注册的手机号发送验证码。请在收到短信后回到此处输入验证码。
+                  <strong>获取验证码步骤：</strong>
                 </p>
-                <div className="mt-2 text-right">
+                <ol className="mt-2 text-sm text-amber-800 list-decimal pl-5 space-y-1">
+                  <li>前往携程商家平台登录页面</li>
+                  <li>输入您的用户名和密码</li>
+                  <li>点击下方的"SMS Code"选项</li>
+                  <li>系统会向您注册的手机发送验证码</li>
+                  <li>收到短信后回到此处输入验证码</li>
+                </ol>
+                <div className="mt-3 text-right">
                   <button 
                     type="button" 
                     onClick={handleCancelVerification}
@@ -331,7 +327,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    重新尝试登录获取验证码
+                    返回上一步
                   </button>
                 </div>
               </div>
@@ -432,19 +428,10 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   </div>
                   
                   {verificationMethod === 'sms' && (
-                    <div>
-                      <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">手机号</label>
-                      <input
-                        {...register('phone_number')}
-                        id="phone_number"
-                        className="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                        placeholder="请输入接收验证码的手机号"
-                      />
-                      {errors.phone_number && (
-                        <p className="mt-1 text-sm text-red-600">{errors.phone_number.message}</p>
-                      )}
-                      <p className="mt-1 text-xs text-gray-500">
-                        登录携程平台时，系统将自动发送验证码到此手机号
+                    <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>携程验证码登录说明：</strong> 选择此项后，添加账户时将需要输入从携程平台获取的短信验证码。
+                        验证码将发送至您在携程平台注册的手机号。
                       </p>
                     </div>
                   )}
