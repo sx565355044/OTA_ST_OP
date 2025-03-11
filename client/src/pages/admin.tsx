@@ -488,30 +488,15 @@ export default function Admin() {
                               />
                             </div>
                             
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <label className="block text-sm font-medium text-gray-700">收益</label>
-                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="10"
-                                step="1"
-                                value={editedPresetValues?.revenue || 0}
-                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
-                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                              />
-                            </div>
+                            {/* 收益是最终目标而不是可调整参数，所以已移除 */}
                           </div>
                           
                           <div className="flex space-x-2">
                             <ButtonFix
                               onClick={saveEditedPreset}
                               className="flex-1"
-                              icon={<span className="material-icons text-sm">save</span>}
                             >
-                              保存并应用
+                              保存
                             </ButtonFix>
                             <ButtonFix
                               onClick={cancelEditPreset}
@@ -523,14 +508,14 @@ export default function Admin() {
                           </div>
                         </div>
                       ) : (
-                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                        <div className="rounded-lg border border-gray-200 bg-white px-6 py-5 shadow-sm">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">date_range</span>
                             </div>
                             <div className="ml-4 flex-1">
                               <h3 className="text-base font-medium text-gray-900 mb-1">关注远期预定</h3>
-                              <p className="text-sm text-gray-500">优先考虑长期预订周期和未来收益</p>
+                              <p className="text-sm text-gray-500">优先考虑长期预订周期的效益</p>
                             </div>
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -543,7 +528,6 @@ export default function Admin() {
                             <ButtonFix
                               onClick={() => startEditPreset('longTerm')}
                               variant="outline"
-                              icon={<span className="material-icons text-sm">edit</span>}
                             >
                               编辑参数
                             </ButtonFix>
@@ -555,7 +539,7 @@ export default function Admin() {
                       {editingPreset === 'minCost' ? (
                         <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
                           <div className="flex items-center mb-4">
-                            <div className="flex-shrink-0 text-green-600">
+                            <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">savings</span>
                             </div>
                             <div className="ml-4 flex-1">
@@ -630,30 +614,15 @@ export default function Admin() {
                               />
                             </div>
                             
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <label className="block text-sm font-medium text-gray-700">收益</label>
-                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="10"
-                                step="1"
-                                value={editedPresetValues?.revenue || 0}
-                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
-                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                              />
-                            </div>
+                            {/* 收益是最终目标而不是可调整参数，所以已移除 */}
                           </div>
                           
                           <div className="flex space-x-2">
                             <ButtonFix
                               onClick={saveEditedPreset}
                               className="flex-1"
-                              icon={<span className="material-icons text-sm">save</span>}
                             >
-                              保存并应用
+                              保存
                             </ButtonFix>
                             <ButtonFix
                               onClick={cancelEditPreset}
@@ -665,14 +634,14 @@ export default function Admin() {
                           </div>
                         </div>
                       ) : (
-                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                        <div className="rounded-lg border border-gray-200 bg-white px-6 py-5 shadow-sm">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 text-green-600">
+                            <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">savings</span>
                             </div>
                             <div className="ml-4 flex-1">
                               <h3 className="text-base font-medium text-gray-900 mb-1">关注成本最小</h3>
-                              <p className="text-sm text-gray-500">优先考虑佣金成本和投入产出比</p>
+                              <p className="text-sm text-gray-500">优先考虑推广成本和投入产出比</p>
                             </div>
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -685,7 +654,6 @@ export default function Admin() {
                             <ButtonFix
                               onClick={() => startEditPreset('minCost')}
                               variant="outline"
-                              icon={<span className="material-icons text-sm">edit</span>}
                             >
                               编辑参数
                             </ButtonFix>
@@ -697,7 +665,7 @@ export default function Admin() {
                       {editingPreset === 'maxVisibility' ? (
                         <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
                           <div className="flex items-center mb-4">
-                            <div className="flex-shrink-0 text-indigo-600">
+                            <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">visibility</span>
                             </div>
                             <div className="ml-4 flex-1">
@@ -772,30 +740,15 @@ export default function Admin() {
                               />
                             </div>
                             
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <label className="block text-sm font-medium text-gray-700">收益</label>
-                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="10"
-                                step="1"
-                                value={editedPresetValues?.revenue || 0}
-                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
-                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                              />
-                            </div>
+                            {/* 收益是最终目标而不是可调整参数，所以已移除 */}
                           </div>
                           
                           <div className="flex space-x-2">
                             <ButtonFix
                               onClick={saveEditedPreset}
                               className="flex-1"
-                              icon={<span className="material-icons text-sm">save</span>}
                             >
-                              保存并应用
+                              保存
                             </ButtonFix>
                             <ButtonFix
                               onClick={cancelEditPreset}
@@ -807,14 +760,14 @@ export default function Admin() {
                           </div>
                         </div>
                       ) : (
-                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                        <div className="rounded-lg border border-gray-200 bg-white px-6 py-5 shadow-sm">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 text-indigo-600">
+                            <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">visibility</span>
                             </div>
                             <div className="ml-4 flex-1">
                               <h3 className="text-base font-medium text-gray-900 mb-1">关注展示最优化</h3>
-                              <p className="text-sm text-gray-500">优先考虑平台展示位置和流量</p>
+                              <p className="text-sm text-gray-500">优先考虑在OTA平台的展示效果</p>
                             </div>
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -827,7 +780,6 @@ export default function Admin() {
                             <ButtonFix
                               onClick={() => startEditPreset('maxVisibility')}
                               variant="outline"
-                              icon={<span className="material-icons text-sm">edit</span>}
                             >
                               编辑参数
                             </ButtonFix>
@@ -839,7 +791,7 @@ export default function Admin() {
                       {editingPreset === 'dailyOcc' ? (
                         <div className="relative rounded-lg border border-primary-300 bg-white px-6 py-5 shadow-md">
                           <div className="flex items-center mb-4">
-                            <div className="flex-shrink-0 text-orange-600">
+                            <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">hotel</span>
                             </div>
                             <div className="ml-4 flex-1">
@@ -914,30 +866,15 @@ export default function Admin() {
                               />
                             </div>
                             
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <label className="block text-sm font-medium text-gray-700">收益</label>
-                                <span className="text-sm text-gray-500">{editedPresetValues?.revenue}</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="10"
-                                step="1"
-                                value={editedPresetValues?.revenue || 0}
-                                onChange={(e) => handlePresetParamChange('revenue', parseInt(e.target.value))}
-                                className="mt-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                              />
-                            </div>
+                            {/* 收益是最终目标而不是可调整参数，所以已移除 */}
                           </div>
                           
                           <div className="flex space-x-2">
                             <ButtonFix
                               onClick={saveEditedPreset}
                               className="flex-1"
-                              icon={<span className="material-icons text-sm">save</span>}
                             >
-                              保存并应用
+                              保存
                             </ButtonFix>
                             <ButtonFix
                               onClick={cancelEditPreset}
@@ -949,14 +886,14 @@ export default function Admin() {
                           </div>
                         </div>
                       ) : (
-                        <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:ring-1 hover:ring-primary-400">
+                        <div className="rounded-lg border border-gray-200 bg-white px-6 py-5 shadow-sm">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 text-orange-600">
+                            <div className="flex-shrink-0 text-primary-600">
                               <span className="material-icons">hotel</span>
                             </div>
                             <div className="ml-4 flex-1">
                               <h3 className="text-base font-medium text-gray-900 mb-1">关注当日OCC</h3>
-                              <p className="text-sm text-gray-500">优先考虑入住率和短期收益</p>
+                              <p className="text-sm text-gray-500">优先考虑提高当前入住率</p>
                             </div>
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -969,7 +906,6 @@ export default function Admin() {
                             <ButtonFix
                               onClick={() => startEditPreset('dailyOcc')}
                               variant="outline"
-                              icon={<span className="material-icons text-sm">edit</span>}
                             >
                               编辑参数
                             </ButtonFix>
@@ -981,78 +917,68 @@ export default function Admin() {
                 </div>
               )}
             </div>
-
-            {/* Strategy Templates */}
+            
+            {/* Strategy Templates Management */}
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <div className="px-4 py-5 sm:px-6">
                 <h3 className="text-lg leading-6 font-medium text-gray-900">策略模板管理</h3>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                  添加和管理策略参考模板
+                  管理可供快速应用的策略模板
                 </p>
               </div>
               <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-                <div className="flex items-center space-x-4 mb-6">
-                  <div className="flex-1">
-                    <label htmlFor="templateSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                      选择历史策略添加为模板
-                    </label>
-                    <select
-                      id="templateSelect"
-                      value={selectedTemplate || ''}
-                      onChange={(e) => setSelectedTemplate(e.target.value || null)}
-                      className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-                    >
-                      <option value="">选择一个策略...</option>
-                      {strategyParamsWithRecent?.recentStrategies?.map((strategy: Strategy) => (
-                        <option key={strategy.id} value={strategy.id}>
-                          {strategy.name} ({new Date(strategy.appliedAt).toLocaleDateString()})
-                        </option>
-                      ))}
-                    </select>
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">添加新模板</h4>
+                    <div className="flex space-x-2">
+                      <select 
+                        className="flex-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        value={selectedTemplate || ''}
+                        onChange={(e) => setSelectedTemplate(e.target.value || null)}
+                      >
+                        <option value="">选择一个最近应用的策略</option>
+                        {strategyParamsWithRecent?.recentStrategies?.map((strategy: Strategy) => (
+                          <option key={strategy.id} value={strategy.id}>
+                            {strategy.name} ({new Date(strategy.appliedAt).toLocaleDateString()})
+                          </option>
+                        ))}
+                      </select>
+                      <ButtonFix 
+                        onClick={handleAddTemplate}
+                        disabled={!selectedTemplate}
+                      >
+                        添加为模板
+                      </ButtonFix>
+                    </div>
                   </div>
-                  <div className="pt-6">
-                    <ButtonFix
-                      type="button"
-                      disabled={!selectedTemplate || addTemplateMutation.isPending}
-                      onClick={handleAddTemplate}
-                      icon={<span className="material-icons text-sm">add</span>}
-                    >
-                      添加为模板
-                    </ButtonFix>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <h4 className="text-base font-medium text-gray-900">当前模板</h4>
-                  {strategyTemplates?.length > 0 ? (
-                    <ul className="mt-3 divide-y divide-gray-200">
-                      {strategyTemplates.map((template: StrategyTemplate) => (
-                        <li key={template.id} className="py-4">
-                          <div className="flex items-center justify-between">
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-700">现有模板</h4>
+                    {strategyTemplates && strategyTemplates.length > 0 ? (
+                      <div className="border rounded-md divide-y">
+                        {strategyTemplates.map((template: StrategyTemplate) => (
+                          <div key={template.id} className="p-4 flex items-center justify-between">
                             <div>
                               <h5 className="text-sm font-medium text-gray-900">{template.name}</h5>
-                              <p className="text-sm text-gray-500">{template.description}</p>
-                              <div className="mt-1 flex items-center text-xs text-gray-500">
-                                <span className="material-icons text-gray-400 mr-1 text-sm">calendar_today</span>
-                                添加于 {new Date(template.addedAt).toLocaleDateString()}
-                              </div>
+                              <p className="text-xs text-gray-500">{template.description}</p>
+                              <p className="text-xs text-gray-400 mt-1">添加于 {new Date(template.addedAt).toLocaleDateString()}</p>
                             </div>
                             <ButtonFix
-                              variant="outline"
                               onClick={() => handleRemoveTemplate(template.id)}
                               size="sm"
-                              icon={<span className="material-icons text-sm">delete</span>}
-                              className="text-red-700 hover:bg-red-50 hover:border-red-300"
+                              variant="outline"
                             >
-                              移除
+                              删除
                             </ButtonFix>
                           </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-3 text-sm text-gray-500">暂无策略模板</p>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-gray-500">
+                        <p>暂无策略模板</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

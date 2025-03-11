@@ -60,7 +60,7 @@ export const RecentStrategies = () => {
       name: "国庆节促销活动组合策略",
       description: "重点参与携程和美团平台活动，飞猪平台仅参与部分房型促销。",
       activitiesAffected: 4,
-      performanceMetric: "收益+12%",
+      performanceMetric: "入住率+12%",
       advantages: [],
       disadvantages: [],
       executionSteps: [],
