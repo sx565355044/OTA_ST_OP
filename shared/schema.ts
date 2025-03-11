@@ -1,140 +1,207 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Platform Accounts table
-export const platformAccounts = pgTable("platform_accounts", {
+// Users table for authentication
+export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  platformName: text("platform_name").notNull(),
-  username: text("username").notNull(),
-  password: text("password").notNull(), // Will be encrypted
-  loginUrl: text("login_url").notNull(),
-  logoUrl: text("logo_url"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  role: text("role").notNull().default("manager"),
+  hotel: text("hotel"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertPlatformAccountSchema = createInsertSchema(platformAccounts).pick({
-  platformName: true,
+export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
-  loginUrl: true,
-  logoUrl: true,
+  role: true,
+  hotel: true,
 });
 
-// Promotion Activities table
-export const promotionActivities = pgTable("promotion_activities", {
+// OTA platform accounts
+export const otaAccounts = pgTable("ota_accounts", {
   id: serial("id").primaryKey(),
-  platformId: integer("platform_id").notNull(),
-  activityName: text("activity_name").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  shortName: text("short_name"),
+  url: text("url").notNull(),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  accountType: text("account_type").notNull(),
+  status: text("status").notNull().default("未连接"),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertOtaAccountSchema = createInsertSchema(otaAccounts).pick({
+  userId: true,
+  name: true,
+  shortName: true,
+  url: true,
+  username: true,
+  password: true,
+  accountType: true,
+  status: true,
+});
+
+// OTA promotion activities
+export const activities = pgTable("activities", {
+  id: serial("id").primaryKey(),
+  platformId: integer("platform_id").notNull().references(() => otaAccounts.id),
+  name: text("name").notNull(),
+  description: text("description"),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  discount: text("discount"),
-  commission: text("commission"),
-  rooms: text("rooms"),
-  status: text("status").default("pending").notNull(), // pending, joined, not_joined
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  discount: text("discount").notNull(),
+  commissionRate: text("commission_rate").notNull(),
+  roomTypes: text("room_types").array(),
+  minimumStay: integer("minimum_stay"),
+  maxBookingWindow: integer("max_booking_window"),
+  status: text("status").notNull().default("未决定"),
+  tag: text("tag"),
+  participationStatus: text("participation_status").default("未参与"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertPromotionActivitySchema = createInsertSchema(promotionActivities).pick({
+export const insertActivitySchema = createInsertSchema(activities).pick({
   platformId: true,
-  activityName: true,
+  name: true,
+  description: true,
   startDate: true,
   endDate: true,
   discount: true,
-  commission: true,
-  rooms: true,
+  commissionRate: true,
+  roomTypes: true,
+  minimumStay: true,
+  maxBookingWindow: true,
   status: true,
-  description: true,
+  tag: true,
 });
 
-// AI Strategies table
+// AI Strategy recommendations
 export const strategies = pgTable("strategies", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  activitiesAffected: integer("activities_affected").notNull(),
-  performanceMetric: text("performance_metric"),
-  executionSteps: json("execution_steps").notNull(),
-  advantages: json("advantages").notNull(),
-  disadvantages: json("disadvantages").notNull(),
-  isTemplate: boolean("is_template").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isRecommended: boolean("is_recommended").default(false),
+  advantages: text("advantages").array(),
+  disadvantages: text("disadvantages").array(),
+  steps: text("steps").array(),
+  notes: text("notes").array(),
+  metrics: json("metrics").notNull(),
+  activityIds: integer("activity_ids").array(),
+  appliedAt: timestamp("applied_at"),
+  appliedBy: text("applied_by"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertStrategySchema = createInsertSchema(strategies).pick({
+  userId: true,
   name: true,
   description: true,
-  activitiesAffected: true,
-  performanceMetric: true,
-  executionSteps: true,
+  isRecommended: true,
   advantages: true,
   disadvantages: true,
-  isTemplate: true,
-});
-
-// Strategy Executions table - records when a strategy is executed
-export const strategyExecutions = pgTable("strategy_executions", {
-  id: serial("id").primaryKey(),
-  strategyId: integer("strategy_id").notNull(),
-  executedAt: timestamp("executed_at").defaultNow().notNull(),
-  activitiesAffected: json("activities_affected").notNull(),
-  notes: text("notes"),
-});
-
-export const insertStrategyExecutionSchema = createInsertSchema(strategyExecutions).pick({
-  strategyId: true,
-  activitiesAffected: true,
+  steps: true,
   notes: true,
+  metrics: true,
+  activityIds: true,
 });
 
-// AI Settings table - stores API keys and model preferences
-export const aiSettings = pgTable("ai_settings", {
+// API Keys for third-party services
+export const apiKeys = pgTable("api_keys", {
   id: serial("id").primaryKey(),
-  apiKey: text("api_key").notNull(), // Will be encrypted
-  model: text("model").default("Deepseek r1").notNull(),
-  apiEndpoint: text("api_endpoint"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  service: text("service").notNull(),
+  encryptedKey: text("encrypted_key").notNull(),
+  model: text("model"),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertAiSettingsSchema = createInsertSchema(aiSettings).pick({
-  apiKey: true,
-  model: true, 
-  apiEndpoint: true,
+export const insertApiKeySchema = createInsertSchema(apiKeys).pick({
+  userId: true,
+  service: true,
+  encryptedKey: true,
+  model: true,
 });
 
-// AI Parameters table - stores weight parameters for AI strategy generation
-export const aiParameters = pgTable("ai_parameters", {
+// User preferences and settings
+export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
-  paramName: text("param_name").notNull().unique(),
-  paramValue: integer("param_value").notNull(),
-  paramDescription: text("param_description").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  notificationsEnabled: boolean("notifications_enabled").default(true),
+  autoRefreshInterval: integer("auto_refresh_interval").default(30),
+  defaultStrategyPreference: text("default_strategy_preference").default("balanced"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertAiParameterSchema = createInsertSchema(aiParameters).pick({
-  paramName: true,
-  paramValue: true,
-  paramDescription: true,
+export const insertSettingsSchema = createInsertSchema(settings).pick({
+  userId: true,
+  notificationsEnabled: true,
+  autoRefreshInterval: true,
+  defaultStrategyPreference: true,
+});
+
+// Strategy parameters for admin configuration
+export const strategyParameters = pgTable("strategy_parameters", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  paramKey: text("param_key").notNull().unique(),
+  value: real("value").notNull().default(5.0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertStrategyParameterSchema = createInsertSchema(strategyParameters).pick({
+  name: true,
+  description: true,
+  paramKey: true,
+  value: true,
+});
+
+// Strategy templates (saved successful strategies)
+export const strategyTemplates = pgTable("strategy_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  strategyId: integer("strategy_id").notNull().references(() => strategies.id),
+  addedBy: text("added_by").notNull(),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export const insertStrategyTemplateSchema = createInsertSchema(strategyTemplates).pick({
+  name: true,
+  description: true,
+  strategyId: true,
+  addedBy: true,
 });
 
 // Type exports
-export type PlatformAccount = typeof platformAccounts.$inferSelect;
-export type InsertPlatformAccount = z.infer<typeof insertPlatformAccountSchema>;
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
-export type PromotionActivity = typeof promotionActivities.$inferSelect;
-export type InsertPromotionActivity = z.infer<typeof insertPromotionActivitySchema>;
+export type OtaAccount = typeof otaAccounts.$inferSelect;
+export type InsertOtaAccount = z.infer<typeof insertOtaAccountSchema>;
+
+export type Activity = typeof activities.$inferSelect;
+export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
 export type Strategy = typeof strategies.$inferSelect;
 export type InsertStrategy = z.infer<typeof insertStrategySchema>;
 
-export type StrategyExecution = typeof strategyExecutions.$inferSelect;
-export type InsertStrategyExecution = z.infer<typeof insertStrategyExecutionSchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 
-export type AiSetting = typeof aiSettings.$inferSelect;
-export type InsertAiSetting = z.infer<typeof insertAiSettingsSchema>;
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = z.infer<typeof insertSettingsSchema>;
 
-export type AiParameter = typeof aiParameters.$inferSelect;
-export type InsertAiParameter = z.infer<typeof insertAiParameterSchema>;
+export type StrategyParameter = typeof strategyParameters.$inferSelect;
+export type InsertStrategyParameter = z.infer<typeof insertStrategyParameterSchema>;
+
+export type StrategyTemplate = typeof strategyTemplates.$inferSelect;
+export type InsertStrategyTemplate = z.infer<typeof insertStrategyTemplateSchema>;
