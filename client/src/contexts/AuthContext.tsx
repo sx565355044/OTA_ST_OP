@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       // 在开发模式下，使用模拟登录
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.MODE !== 'production') {
         // 模拟延迟以更真实
         await new Promise(resolve => setTimeout(resolve, 500));
         
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       // 在开发模式下，直接清除用户状态
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.MODE !== 'production') {
         // 模拟延迟以更真实
         await new Promise(resolve => setTimeout(resolve, 300));
         setUser(null);
@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // For demo purposes, initialize with a mock user if not in production
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production' && isLoading) {
+    if (import.meta.env.MODE !== 'production' && isLoading) {
       setUser({
         id: 1,
         username: '总经理',
