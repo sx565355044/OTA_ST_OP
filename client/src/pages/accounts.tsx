@@ -5,14 +5,27 @@ import { Layout } from '@/components/layout/sidebar';
 import { AccountsTable } from '@/components/tables/accounts-table';
 import { AccountModal } from '@/components/modals/account-modal';
 import { useToast } from '@/hooks/use-toast';
+import { ButtonFix } from '@/components/ui/button-fix';
 
 export default function Accounts() {
   const { toast } = useToast();
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [accountToEdit, setAccountToEdit] = useState<number | null>(null);
 
+  // 定义账户接口
+  interface Account {
+    id: number;
+    name: string;
+    shortName?: string;
+    type: string;
+    username: string;
+    accountType: string;
+    status: string;
+    lastUpdated: string;
+  }
+  
   // Fetch accounts
-  const { data: accounts, isLoading } = useQuery({
+  const { data: accounts, isLoading } = useQuery<Account[]>({
     queryKey: ['/api/accounts'],
   });
 
@@ -74,13 +87,12 @@ export default function Accounts() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0">
-              <button
+              <ButtonFix
                 onClick={handleAddAccount}
-                className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                icon={<span className="material-icons text-sm">add</span>}
               >
-                <span className="material-icons text-sm mr-1">add</span>
                 添加账户
-              </button>
+              </ButtonFix>
             </div>
           </div>
 
