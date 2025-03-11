@@ -4,6 +4,7 @@ import { storage } from "./storage"; // Use the default storage
 import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "./utils/encryption";
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
+import { ctripLoginService } from "./services/ctrip-login";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import session from 'express-session';
