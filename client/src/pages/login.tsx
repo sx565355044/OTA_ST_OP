@@ -16,9 +16,12 @@ export default function Login() {
     setLoading(true);
     
     try {
+      console.log('尝试登录:', username, '********');
       await login(username, password);
+      console.log('登录成功，即将跳转到首页');
       navigate('/');
     } catch (error) {
+      console.error('登录失败:', error);
       toast({
         title: "登录失败",
         description: error instanceof Error ? error.message : "用户名或密码错误",

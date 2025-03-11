@@ -105,8 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // For demo purposes, initialize with a mock user if not in production
-  useEffect(() => {
+  // 暂时注释掉自动演示模式登录，强制用户手动登录
+  /*useEffect(() => {
     if (import.meta.env.MODE !== 'production' && isLoading) {
       setUser({
         id: 1,
@@ -114,6 +114,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'manager',
         hotel: '星星酒店连锁'
       });
+      setIsLoading(false);
+    }
+  }, [isLoading]);*/
+
+  // 在组件加载后结束加载状态
+  useEffect(() => {
+    if (isLoading) {
       setIsLoading(false);
     }
   }, [isLoading]);
