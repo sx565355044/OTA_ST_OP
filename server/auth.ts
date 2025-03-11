@@ -1,7 +1,7 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
+import { postgresStorage as storage } from "./storage-pg";
 import { comparePassword } from "./utils/encryption";
 import { User as SelectUser } from "@shared/schema";
 
