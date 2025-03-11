@@ -38,6 +38,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   const { data: accountData, isLoading: isLoadingAccount } = useQuery({
     queryKey: ['/api/accounts', accountId],
     enabled: isEditing && isOpen,
+    retry: 1,
   });
   
   const {
@@ -123,40 +124,54 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   const verifyCode = async (code: string, accountData: AccountFormValues) => {
     try {
       setIsLoadingVerification(true);
-      // 这里是模拟验证码验证过程，在实际环境中会通过API验证
-      await new Promise(resolve => setTimeout(resolve, 1500)); // 模拟网络延迟
+      console.log('开始验证流程，验证码:', code);
+      // 短暂延迟模拟网络请求
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      // 假设验证成功，继续创建账户流程
+      // 继续创建账户流程
       const url = isEditing 
         ? `/api/accounts/${accountId}` 
         : '/api/accounts';
       
       const method = isEditing ? 'PUT' : 'POST';
+      console.log(`发送验证后的请求到 ${url}，方法: ${method}`);
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: accountData.platform_name,
-          url: accountData.platform_url,
-          username: accountData.username,
-          password: accountData.password,
-          verificationMethod: accountData.verification_method,
-          accountType: accountData.account_type,
-          // 在实际实现中，也可以将验证码传给后端进行二次验证
-          verificationCode: code
-        }),
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to ${isEditing ? 'update' : 'create'} account`);
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: accountData.platform_name,
+            url: accountData.platform_url,
+            username: accountData.username,
+            password: accountData.password,
+            verificationMethod: accountData.verification_method,
+            accountType: accountData.account_type,
+            phoneNumber: accountData.phone_number,
+            // 将验证码传给后端用于实际环境中的验证
+            verificationCode: code
+          }),
+          credentials: 'include',
+        });
+        
+        console.log(`请求完成，状态: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`验证请求失败: ${response.status} ${response.statusText}`, errorData);
+          throw new Error(`账户${isEditing ? '更新' : '创建'}失败: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log(`验证请求成功:`, result);
+        setIsLoadingVerification(false);
+        return result;
+      } catch (error) {
+        console.error(`验证请求错误:`, error);
+        throw error;
       }
-      
-      setIsLoadingVerification(false);
-      return await response.json();
     } catch (error) {
       setIsLoadingVerification(false);
       toast({
@@ -202,27 +217,38 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       
       const method = isEditing ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: data.platform_name,
-          url: data.platform_url,
-          username: data.username,
-          password: data.password,
-          verificationMethod: data.verification_method,
-          accountType: data.account_type, // 改为accountType而不是type
-        }),
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to ${isEditing ? 'update' : 'create'} account`);
+      try {
+        console.log(`发送请求到 ${url}，方法: ${method}`);
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: data.platform_name,
+            url: data.platform_url,
+            username: data.username,
+            password: data.password,
+            verificationMethod: data.verification_method,
+            accountType: data.account_type,
+            phoneNumber: data.phone_number, // 添加手机号
+          }),
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`请求失败: ${response.status} ${response.statusText}`, errorData);
+          throw new Error(`账户${isEditing ? '更新' : '创建'}失败: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log(`请求成功:`, result);
+        return result;
+      } catch (error) {
+        console.error(`请求错误:`, error);
+        throw error;
       }
-      
-      return await response.json();
     },
     onSuccess: (data) => {
       console.log('Mutation成功:', data, '验证步骤:', showVerificationStep);
@@ -516,30 +542,32 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                 ? '保存修改' 
                 : '添加账户'}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              // 用于测试的直接跳转到验证码界面的功能
-              if (!isEditing && verificationMethod === 'sms') {
-                console.log('直接跳转到验证码界面');
-                // 创建一个模拟表单数据
-                const mockData: AccountFormValues = {
-                  platform_name: '携程商家平台',
-                  platform_url: 'https://ebooking.ctrip.com/home/mainland',
-                  username: 'test_user',
-                  password: 'password123',
-                  verification_method: 'sms',
-                  phone_number: '',
-                  account_type: '商家账户'
-                };
-                setAccountCreationData(mockData);
-                setShowVerificationStep(true);
-              }
-            }}
-            className="bg-blue-500 text-white mr-2 px-4 py-2 rounded-md sm:ml-2 sm:w-auto sm:text-sm"
-          >
-            测试验证码界面
-          </button>
+          {process.env.NODE_ENV === 'development' && (
+            <button
+              type="button"
+              onClick={() => {
+                // 用于测试的直接跳转到验证码界面的功能
+                if (!isEditing && verificationMethod === 'sms') {
+                  console.log('直接跳转到验证码界面');
+                  // 创建一个模拟表单数据
+                  const mockData: AccountFormValues = {
+                    platform_name: '携程商家平台',
+                    platform_url: 'https://ebooking.ctrip.com/home/mainland',
+                    username: 'test_user',
+                    password: 'password123',
+                    verification_method: 'sms',
+                    phone_number: '',
+                    account_type: '商家账户'
+                  };
+                  setAccountCreationData(mockData);
+                  setShowVerificationStep(true);
+                }
+              }}
+              className="bg-blue-500 text-white mr-2 px-4 py-2 rounded-md sm:ml-2 sm:w-auto sm:text-sm"
+            >
+              测试验证码界面
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
