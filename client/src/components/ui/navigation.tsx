@@ -15,9 +15,9 @@ export function NavItem({ href, icon, children, active }: NavItemProps) {
 
   return (
     <Link href={href}>
-      <a
+      <div
         className={cn(
-          "flex items-center px-3 py-2 text-sm font-medium rounded-md", 
+          "flex items-center px-3 py-2 text-sm font-medium rounded-md cursor-pointer", 
           isActive 
             ? "bg-primary-50 text-primary-700" 
             : "text-gray-700 hover:bg-gray-50 hover:text-primary-700"
@@ -30,7 +30,7 @@ export function NavItem({ href, icon, children, active }: NavItemProps) {
           {icon}
         </span>
         <span>{children}</span>
-      </a>
+      </div>
     </Link>
   );
 }
@@ -49,9 +49,9 @@ export function MobileNavItem({ href, icon, children, onClick, active }: MobileN
 
   return (
     <Link href={href}>
-      <a
+      <div
         className={cn(
-          "flex items-center px-3 py-2 text-sm font-medium rounded-md", 
+          "flex items-center px-3 py-2 text-sm font-medium rounded-md cursor-pointer", 
           isActive 
             ? "bg-primary-50 text-primary-700" 
             : "text-gray-700 hover:bg-gray-50 hover:text-primary-700"
@@ -65,7 +65,7 @@ export function MobileNavItem({ href, icon, children, onClick, active }: MobileN
           {icon}
         </span>
         <span>{children}</span>
-      </a>
+      </div>
     </Link>
   );
 }
