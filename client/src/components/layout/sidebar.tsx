@@ -112,7 +112,7 @@ export function Layout({ children }: LayoutProps) {
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-800">{user?.username || '总经理'}</p>
-                <p className="text-xs text-gray-500">{user?.hotel || '星星酒店连锁'}</p>
+                <p className="text-xs text-gray-500">{user?.hotel}</p>
               </div>
             </div>
           </div>
