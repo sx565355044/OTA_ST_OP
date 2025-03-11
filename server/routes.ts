@@ -918,20 +918,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const checkAdmin = async (req: any, res: any, next: any) => {
     console.log("checkAdmin middleware - session:", JSON.stringify(req.session));
     console.log("checkAdmin middleware - userId:", req.session?.userId);
-
-    if (!req.session || !req.session.userId) {
-      console.log("checkAdmin: No session or userId");
+    console.log("checkAdmin middleware - passport user:", req.user);
+    console.log("checkAdmin middleware - isAuthenticated:", req.isAuthenticated?.());
+    
+    // Get the user ID from the session or passport
+    let userId: number | undefined;
+    
+    // 首先尝试从req.user获取ID（Passport方式）
+    if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+      userId = req.user.id;
+      console.log("checkAdmin: Found userId via Passport:", userId);
+    } 
+    // 如果失败，尝试从session中获取
+    else if (req.session && req.session.userId) {
+      userId = req.session.userId;
+      console.log("checkAdmin: Found userId via session:", userId);
+    }
+    
+    if (!userId) {
+      console.log("checkAdmin: No userId found in session or passport");
       return res.status(401).json({ message: "Not authenticated" });
     }
     
-    const user = await storage.getUser(req.session.userId);
-    console.log("checkAdmin: Found user:", user?.username, "role:", user?.role);
-    
-    if (!user || user.role !== "admin") {
-      return res.status(403).json({ message: "Unauthorized" });
+    try {
+      const user = await storage.getUser(userId);
+      console.log("checkAdmin: Found user:", user?.username, "role:", user?.role);
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      // 将当前获取到的用户ID更新到session中确保同步
+      if (req.session) {
+        req.session.userId = userId;
+      }
+      
+      next();
+    } catch (error) {
+      console.error("checkAdmin error:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
-    
-    next();
   };
 
   app.get("/api/admin/strategy-parameters", checkAuth, checkAdmin, async (req, res) => {
