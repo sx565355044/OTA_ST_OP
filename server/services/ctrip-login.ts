@@ -283,7 +283,7 @@ export class CtripLoginService {
    * 检查是否已成功登录
    * @returns 是否已登录
    */
-  private async checkIfLoggedIn(): Promise<boolean> {
+  public async checkIfLoggedIn(): Promise<boolean> {
     try {
       if (!this.page) throw new Error('浏览器未初始化');
       
