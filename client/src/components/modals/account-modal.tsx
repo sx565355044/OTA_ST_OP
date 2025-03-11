@@ -176,17 +176,23 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       console.log('需要短信验证:', data.verification_method === 'sms');
       console.log('是否编辑模式:', isEditing);
       if (data.verification_method === 'sms' && !isEditing) {
+        console.log('需要SMS验证，准备显示验证码界面');
         // 先保存表单数据
         setAccountCreationData(data);
-        // 显示验证码说明
-        const instructionShown = await showVerificationInstruction();
-        if (instructionShown) {
-          setShowVerificationStep(true);
-          // 这里返回一个空对象，因为实际的账户创建会在验证码确认后进行
-          return {} as any;
-        } else {
-          throw new Error('无法继续验证流程');
-        }
+        
+        // 直接显示验证码界面，简化流程
+        console.log('直接设置showVerificationStep为true');
+        setShowVerificationStep(true);
+        
+        // 显示一个提示
+        toast({
+          title: "验证码说明",
+          description: "请前往携程商家平台获取验证码，然后在此输入",
+          variant: "default",
+        });
+        
+        // 这里返回一个空对象，因为实际的账户创建会在验证码确认后进行
+        return {} as any;
       }
       
       // 如果不需要验证或者是编辑现有账户，直接保存
@@ -218,20 +224,29 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       
       return await response.json();
     },
-    onSuccess: () => {
-      // 如果显示的是验证码界面，不要关闭或显示成功提示，等待验证码确认
-      if (showVerificationStep) return;
+    onSuccess: (data) => {
+      console.log('Mutation成功:', data, '验证步骤:', showVerificationStep);
       
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
-      toast({
-        title: isEditing ? "账户更新成功" : "账户添加成功",
-        description: isEditing 
-          ? "OTA平台账户信息已成功更新" 
-          : "OTA平台账户已成功添加到系统",
-        variant: "success",
-      });
-      onClose();
+      // 如果已经显示验证码界面，不要关闭或显示成功提示，等待验证码确认
+      if (showVerificationStep) {
+        console.log('已经在验证码步骤，不执行额外操作');
+        return;
+      }
+      
+      // 如果是非SMS验证或编辑模式，刷新数据并显示成功提示
+      if (isEditing || !verificationMethod || verificationMethod === 'none') {
+        console.log('非SMS验证流程，刷新数据');
+        queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+        toast({
+          title: isEditing ? "账户更新成功" : "账户添加成功",
+          description: isEditing 
+            ? "OTA平台账户信息已成功更新" 
+            : "OTA平台账户已成功添加到系统",
+          variant: "success",
+        });
+        onClose();
+      }
     },
     onError: (error) => {
       toast({
@@ -301,18 +316,31 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
             </div>
             
             <div className="mt-6 space-y-4">
-              <div className="flex justify-center">
+              <div className="flex justify-center mb-4">
                 <InputOTP
                   maxLength={6}
                   value={verificationCode}
-                  onChange={setVerificationCode}
+                  onChange={(value) => {
+                    console.log('验证码输入:', value);
+                    setVerificationCode(value);
+                  }}
+                  containerClassName="gap-2 has-[:disabled]:opacity-50"
                 >
                   <InputOTPGroup>
                     {Array.from({ length: 6 }).map((_, index) => (
-                      <InputOTPSlot key={index} index={index} className="w-12 h-12 text-xl" />
+                      <InputOTPSlot 
+                        key={index} 
+                        index={index} 
+                        className="w-12 h-12 text-xl border-gray-300 rounded-md focus:border-primary-500 focus:ring-primary-500" 
+                      />
                     ))}
                   </InputOTPGroup>
                 </InputOTP>
+              </div>
+              <div className="text-center mb-4">
+                <span className="text-sm text-gray-500">
+                  已输入: {verificationCode.length}/6 位
+                </span>
               </div>
               <div className="bg-amber-50 p-3 rounded-md border border-amber-200">
                 <p className="text-sm text-amber-800">
@@ -482,7 +510,17 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
               // 用于测试的直接跳转到验证码界面的功能
               if (!isEditing && verificationMethod === 'sms') {
                 console.log('直接跳转到验证码界面');
-                setAccountCreationData(getValues());
+                // 创建一个模拟表单数据
+                const mockData: AccountFormValues = {
+                  platform_name: '携程',
+                  platform_url: 'https://merchant.ctrip.com',
+                  username: 'test_user',
+                  password: 'password123',
+                  verification_method: 'sms',
+                  phone_number: '',
+                  account_type: '商家账户'
+                };
+                setAccountCreationData(mockData);
                 setShowVerificationStep(true);
               }
             }}
