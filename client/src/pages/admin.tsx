@@ -235,6 +235,52 @@ export default function Admin() {
     }
   });
 
+  // 应用策略模板
+  const applyTemplateMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const response = await fetch(`/api/admin/strategy-templates/${templateId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to apply template');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      // 更新当前权重值
+      if (data && data.weights) {
+        setWeights({
+          longTermBooking: data.weights.longTermBooking || weights.longTermBooking,
+          costEfficiency: data.weights.costEfficiency || weights.costEfficiency,
+          visibility: data.weights.visibility || weights.visibility,
+          occupancyRate: data.weights.occupancyRate || weights.occupancyRate,
+        });
+      }
+      
+      // 刷新参数数据
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/strategy-parameters'] });
+      
+      toast({
+        title: "模板应用成功",
+        description: "策略模板权重已成功应用",
+        variant: "success",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "模板应用失败",
+        description: error instanceof Error ? error.message : "未知错误",
+        variant: "destructive",
+      });
+    }
+  });
+
   // 处理权重调整
   const handleWeightChange = (key: keyof StrategyWeights, value: number) => {
     setWeights(prev => ({
@@ -360,6 +406,11 @@ export default function Admin() {
     if (confirm('确定要删除此模板吗？')) {
       removeTemplateMutation.mutate(templateId);
     }
+  };
+  
+  // 处理应用模板
+  const handleApplyTemplate = (templateId: string) => {
+    applyTemplateMutation.mutate(templateId);
   };
 
   return (
@@ -561,13 +612,22 @@ export default function Admin() {
                               <p className="text-xs text-gray-500">{template.description}</p>
                               <p className="text-xs text-gray-400 mt-1">添加于 {new Date(template.addedAt).toLocaleDateString()}</p>
                             </div>
-                            <ButtonFix
-                              onClick={() => handleRemoveTemplate(template.id)}
-                              size="sm"
-                              variant="outline"
-                            >
-                              删除
-                            </ButtonFix>
+                            <div className="flex space-x-2">
+                              <ButtonFix
+                                onClick={() => handleApplyTemplate(template.id)}
+                                size="sm"
+                                variant="default"
+                              >
+                                应用
+                              </ButtonFix>
+                              <ButtonFix
+                                onClick={() => handleRemoveTemplate(template.id)}
+                                size="sm"
+                                variant="outline"
+                              >
+                                删除
+                              </ButtonFix>
+                            </div>
                           </div>
                         ))}
                       </div>
