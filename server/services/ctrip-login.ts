@@ -23,7 +23,7 @@ export class CtripLoginService {
   /**
    * 初始化浏览器实例
    */
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     try {

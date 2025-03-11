@@ -41,9 +41,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 设置认证
   setupAuth(app);
 
-
-
-
+  // Ctrip Authentication Routes
+  app.post("/api/ctrip-auth/init", async (req: AuthRequest, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      // 初始化携程登录服务
+      await ctripLoginService.close(); // 确保关闭之前的会话
+      await ctripLoginService.initialize();
+      await ctripLoginService.navigateToLoginPage();
+      
+      res.json({
+        success: true,
+        message: "Ctrip login session initialized",
+        state: ctripLoginService.getLoginState()
+      });
+    } catch (error) {
+      console.error("Error initializing Ctrip login:", error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to initialize Ctrip login session",
+        state: ctripLoginService.getLoginState()
+      });
+    }
+  });
+  
+  app.post("/api/ctrip-auth/credentials", async (req: AuthRequest, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Username and password are required"
+      });
+    }
+    
+    try {
+      // 输入凭据并提交
+      await ctripLoginService.enterCredentials(username, password);
+      await ctripLoginService.submitCredentialsAndWaitForSmsVerification();
+      
+      const currentState = ctripLoginService.getLoginState();
+      const requiresSms = currentState === 'sms_sent';
+      const isLoggedIn = currentState === 'logged_in';
+      
+      if (isLoggedIn) {
+        // 如果已经成功登录（无需短信验证）
+        const cookies = ctripLoginService.getEncryptedCookiesString();
+        
+        res.json({
+          success: true,
+          message: "Successfully logged in without SMS verification",
+          state: currentState,
+          requiresSms: false,
+          cookies
+        });
+      } else if (requiresSms) {
+        // 需要短信验证
+        res.json({
+          success: true,
+          message: "SMS verification required",
+          state: currentState,
+          requiresSms: true
+        });
+      } else {
+        // 其他状态，可能是登录失败
+        res.json({
+          success: false,
+          message: "Login failed or unexpected state",
+          state: currentState
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting Ctrip credentials:", error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to submit credentials",
+        state: ctripLoginService.getLoginState()
+      });
+    }
+  });
+  
+  app.post("/api/ctrip-auth/verify-sms", async (req: AuthRequest, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const { smsCode } = req.body;
+    
+    if (!smsCode) {
+      return res.status(400).json({
+        success: false,
+        message: "SMS verification code is required"
+      });
+    }
+    
+    try {
+      // 输入短信验证码
+      await ctripLoginService.enterSmsVerificationCode(smsCode);
+      
+      // 检查是否已成功登录
+      const isLoggedIn = await ctripLoginService.checkIfLoggedIn();
+      const currentState = ctripLoginService.getLoginState();
+      
+      if (isLoggedIn) {
+        // 获取cookies用于后续操作
+        const cookies = ctripLoginService.getEncryptedCookiesString();
+        
+        res.json({
+          success: true,
+          message: "Successfully verified SMS code and logged in",
+          state: currentState,
+          cookies
+        });
+      } else {
+        res.json({
+          success: false,
+          message: "SMS verification failed or timed out",
+          state: currentState
+        });
+      }
+    } catch (error) {
+      console.error("Error verifying SMS code:", error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to verify SMS code",
+        state: ctripLoginService.getLoginState()
+      });
+    }
+  });
+  
+  app.post("/api/ctrip-auth/close", async (req: AuthRequest, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      await ctripLoginService.close();
+      
+      res.json({
+        success: true,
+        message: "Ctrip login session closed"
+      });
+    } catch (error) {
+      console.error("Error closing Ctrip login session:", error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to close Ctrip login session"
+      });
+    }
+  });
 
   // Authentication endpoints are now handled in auth.ts
 

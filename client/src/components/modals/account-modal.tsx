@@ -137,10 +137,19 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       setIsLoadingVerification(true);
       setCtripLoginStep('init');
       
-      const result = await apiRequest({
-        url: '/api/ctrip-auth/init',
-        method: 'POST'
-      }) as {success: boolean; message: string; state: string};
+      const response = await fetch('/api/ctrip-auth/init', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`初始化失败: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
       
       if (result.success) {
         setCtripLoginState(result.state);
@@ -174,11 +183,20 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     try {
       setIsLoadingVerification(true);
       
-      const result = await apiRequest({
-        url: '/api/ctrip-auth/credentials',
+      const response = await fetch('/api/ctrip-auth/credentials', {
         method: 'POST',
-        data: { username, password }
-      }) as {success: boolean; message: string; state: string; requiresSms: boolean; cookies?: string};
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`提交凭据失败: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
       
       if (result.success) {
         setCtripLoginState(result.state);
@@ -227,11 +245,20 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     try {
       setIsLoadingVerification(true);
       
-      const result = await apiRequest({
-        url: '/api/ctrip-auth/verify-sms',
+      const response = await fetch('/api/ctrip-auth/verify-sms', {
         method: 'POST',
-        data: { smsCode }
-      }) as {success: boolean; message: string; state: string; cookies?: string};
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ smsCode }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`验证失败: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
       
       if (result.success) {
         setCtripLoginState(result.state);
@@ -326,9 +353,9 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   // 清理Ctrip登录会话
   const cleanupCtripSession = async () => {
     try {
-      await apiRequest({
-        url: '/api/ctrip-auth/close',
-        method: 'POST'
+      await fetch('/api/ctrip-auth/close', {
+        method: 'POST',
+        credentials: 'include',
       });
     } catch (error) {
       console.error("关闭Ctrip会话失败:", error);
