@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { postgresStorage as storage } from "./storage-pg";
 import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "./utils/encryption";
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
