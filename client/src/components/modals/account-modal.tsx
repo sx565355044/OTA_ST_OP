@@ -366,7 +366,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   const verifyCode = async (code: string, accountData: AccountFormValues) => {
     try {
       setIsLoadingVerification(true);
-      console.log('开始验证流程，验证码:', code);
       
       // 使用真实的携程SMS验证
       const success = await verifyCtripSmsCode(code);
@@ -588,7 +587,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   <button
                     type="button"
                     onClick={() => initCtripLogin()}
-                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-lg font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     开始验证
                   </button>
@@ -675,7 +674,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                       <button
                         type="button"
                         onClick={() => submitCtripCredentials(accountCreationData.username, accountCreationData.password)}
-                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                        className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-lg font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
                         验证
                       </button>
@@ -751,9 +750,9 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                     type="button"
                     onClick={() => handleVerifyCode()}
                     disabled={verificationCode.length !== 6}
-                    className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
+                    className={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-lg font-bold rounded-md text-white ${
                       verificationCode.length === 6 
-                        ? 'bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500' 
+                        ? 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' 
                         : 'bg-gray-400 cursor-not-allowed'
                     }`}
                   >
