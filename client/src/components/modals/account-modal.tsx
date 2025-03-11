@@ -101,7 +101,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   // 提示用户关于验证码的信息
   const showVerificationInstruction = async () => {
     try {
-      console.log('显示验证码说明');
       setIsLoadingVerification(true);
       // 简单模拟查询延迟
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -111,12 +110,9 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         description: "请前往携程商家平台获取验证码，然后在此输入",
         variant: "default",
       });
-      console.log('验证码说明显示完成，设置loading为false');
       setIsLoadingVerification(false);
-      console.log('验证码说明函数返回true');
       return true;
     } catch (error) {
-      console.log('验证码说明出错:', error);
       setIsLoadingVerification(false);
       toast({
         title: "操作失败",
@@ -391,16 +387,11 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   const accountMutation = useMutation({
     mutationFn: async (data: AccountFormValues) => {
       // 如果需要短信验证，显示验证码输入界面
-      console.log('账户处理函数:', data);
-      console.log('需要短信验证:', data.verification_method === 'sms');
-      console.log('是否编辑模式:', isEditing);
       if (data.verification_method === 'sms' && !isEditing) {
-        console.log('需要SMS验证，准备显示验证码界面');
         // 先保存表单数据
         setAccountCreationData(data);
         
         // 直接显示验证码界面，简化流程
-        console.log('直接设置showVerificationStep为true');
         setShowVerificationStep(true);
         
         // 显示一个提示
@@ -422,7 +413,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       const method = isEditing ? 'PUT' : 'POST';
       
       try {
-        console.log(`发送请求到 ${url}，方法: ${method}`);
         const response = await fetch(url, {
           method,
           headers: {
@@ -447,7 +437,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         }
         
         const result = await response.json();
-        console.log(`请求成功:`, result);
         return result;
       } catch (error) {
         console.error(`请求错误:`, error);
@@ -455,17 +444,14 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       }
     },
     onSuccess: (data) => {
-      console.log('Mutation成功:', data, '验证步骤:', showVerificationStep);
       
       // 如果已经显示验证码界面，不要关闭或显示成功提示，等待验证码确认
       if (showVerificationStep) {
-        console.log('已经在验证码步骤，不执行额外操作');
         return;
       }
       
       // 如果是非SMS验证或编辑模式，刷新数据并显示成功提示
       if (isEditing || !verificationMethod || verificationMethod === 'none') {
-        console.log('非SMS验证流程，刷新数据');
         queryClient.invalidateQueries({ queryKey: ['/api/accounts'] });
         queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
         toast({
@@ -523,8 +509,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   };
   
   const onSubmit = (data: AccountFormValues) => {
-    console.log('表单提交:', data);
-    console.log('验证方式:', data.verification_method);
     accountMutation.mutate(data);
   };
   
@@ -716,7 +700,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                     maxLength={6}
                     value={verificationCode}
                     onChange={(value) => {
-                      console.log('验证码输入:', value);
                       setVerificationCode(value);
                     }}
                     containerClassName="gap-2 has-[:disabled]:opacity-50"
@@ -784,7 +767,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="mt-6 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  className="mt-6 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-lg font-bold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   完成
                 </button>
@@ -975,7 +958,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           <button
             type="submit"
             disabled={isSubmitting || isLoadingAccount}
-            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
           >
             {isSubmitting 
               ? '保存中...' 
@@ -983,32 +966,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                 ? '保存修改' 
                 : '添加账户'}
           </button>
-          {process.env.NODE_ENV === 'development' && (
-            <button
-              type="button"
-              onClick={() => {
-                // 用于测试的直接跳转到验证码界面的功能
-                if (!isEditing && verificationMethod === 'sms') {
-                  console.log('直接跳转到验证码界面');
-                  // 创建一个模拟表单数据
-                  const mockData: AccountFormValues = {
-                    platform_name: '携程商家平台',
-                    platform_url: 'https://ebooking.ctrip.com/home/mainland',
-                    username: 'test_user',
-                    password: 'password123',
-                    verification_method: 'sms',
-                    phone_number: '13812345678',
-                    account_type: '商家账户'
-                  };
-                  setAccountCreationData(mockData);
-                  setShowVerificationStep(true);
-                }
-              }}
-              className="bg-blue-500 text-white mr-2 px-4 py-2 rounded-md sm:ml-2 sm:w-auto sm:text-sm"
-            >
-              测试验证码界面
-            </button>
-          )}
+
           <button
             type="button"
             onClick={onClose}
@@ -1029,7 +987,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           type="button"
           onClick={handleVerifyCode}
           disabled={verificationCode.length !== 6 || isLoadingVerification}
-          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+          className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-bold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
         >
           {isLoadingVerification ? '验证中...' : '验证并添加账户'}
         </button>
