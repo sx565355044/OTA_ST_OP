@@ -55,9 +55,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      const res = await apiRequest('POST', '/api/auth/login', { username, password });
-      const userData = await res.json();
-      setUser(userData);
+      // 在开发模式下，使用模拟登录
+      if (process.env.NODE_ENV !== 'production') {
+        // 模拟延迟以更真实
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // 设置模拟用户数据
+        const mockUser = {
+          id: 1,
+          username: username || '总经理',
+          role: 'manager',
+          hotel: '星星酒店连锁'
+        };
+        
+        setUser(mockUser);
+        return mockUser;
+      } else {
+        // 生产环境中使用真实API调用
+        const res = await apiRequest('POST', '/api/auth/login', { username, password });
+        const userData = await res.json();
+        setUser(userData);
+        return userData;
+      }
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -69,8 +88,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
-      await apiRequest('POST', '/api/auth/logout', {});
-      setUser(null);
+      // 在开发模式下，直接清除用户状态
+      if (process.env.NODE_ENV !== 'production') {
+        // 模拟延迟以更真实
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setUser(null);
+      } else {
+        // 生产环境中使用真实API调用
+        await apiRequest('POST', '/api/auth/logout', {});
+        setUser(null);
+      }
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
