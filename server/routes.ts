@@ -895,11 +895,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin routes
   const checkAdmin = async (req: any, res: any, next: any) => {
+    console.log("checkAdmin middleware - session:", JSON.stringify(req.session));
+    console.log("checkAdmin middleware - userId:", req.session?.userId);
+
     if (!req.session || !req.session.userId) {
+      console.log("checkAdmin: No session or userId");
       return res.status(401).json({ message: "Not authenticated" });
     }
     
     const user = await storage.getUser(req.session.userId);
+    console.log("checkAdmin: Found user:", user?.username, "role:", user?.role);
     
     if (!user || user.role !== "admin") {
       return res.status(403).json({ message: "Unauthorized" });
@@ -932,10 +937,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/strategy-parameters", checkAuth, checkAdmin, async (req, res) => {
     try {
       const parameters = req.body;
+      console.log("Updating strategy parameters:", JSON.stringify(parameters));
       
       // Update each parameter
       const updatedParameters = await Promise.all(
         parameters.map(async (param: any) => {
+          console.log("Updating parameter:", param.id, param.key || param.paramKey, "to value:", param.value);
           return await storage.updateStrategyParameter(param.id, {
             ...param,
             updatedAt: new Date(),
@@ -943,6 +950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
+      console.log("Parameters updated successfully");
       res.json(updatedParameters);
     } catch (error) {
       console.error("Error updating strategy parameters:", error);
