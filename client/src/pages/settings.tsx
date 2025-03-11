@@ -204,10 +204,10 @@ export default function Settings() {
                           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
                           defaultValue={settings?.defaultStrategyPreference || 'balanced'}
                         >
-                          <option value="revenue">收益优先</option>
+                          <option value="occupancy">入住率优先</option>
                           <option value="traffic">流量优先</option>
                           <option value="balanced">平衡策略</option>
-                          <option value="longTerm">长期收益</option>
+                          <option value="longTerm">长期入住</option>
                         </select>
                       </div>
                     </div>

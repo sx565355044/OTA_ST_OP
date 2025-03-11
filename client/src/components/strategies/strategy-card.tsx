@@ -44,7 +44,7 @@ export function StrategyCard({ strategy, onSelect, isRecommended }: StrategyCard
         <div>
           <div className="flex items-center mb-1">
             <div className="text-xs font-medium text-gray-500">
-              预计{strategy.metrics.projectedGrowth.type === 'revenue' ? '收益' : strategy.metrics.projectedGrowth.type === 'traffic' ? '流量' : '整体'}增长
+              预计{strategy.metrics.projectedGrowth.type === 'occupancy' ? '入住率' : strategy.metrics.projectedGrowth.type === 'traffic' ? '流量' : '整体'}增长
             </div>
             <div className={`ml-auto text-xs font-semibold ${getGrowthTextColor(strategy.metrics.projectedGrowth.type)}`}>
               {strategy.metrics.projectedGrowth.value}
@@ -91,7 +91,7 @@ export function StrategyCard({ strategy, onSelect, isRecommended }: StrategyCard
 // Helper functions for styling based on metrics
 function getGrowthTextColor(type: string): string {
   switch (type) {
-    case 'revenue':
+    case 'occupancy':
       return 'text-green-600';
     case 'traffic':
       return 'text-blue-600';
@@ -102,7 +102,7 @@ function getGrowthTextColor(type: string): string {
 
 function getGrowthBgColor(type: string): string {
   switch (type) {
-    case 'revenue':
+    case 'occupancy':
       return 'bg-green-500';
     case 'traffic':
       return 'bg-blue-500';

@@ -43,7 +43,7 @@ export default function Login() {
           酒店OTA活动管理系统
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          智能管理OTA平台促销活动，优化收益策略
+          智能管理OTA平台促销活动，优化入住率与营销效果
         </p>
       </div>
 
