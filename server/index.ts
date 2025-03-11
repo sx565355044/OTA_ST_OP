@@ -5,7 +5,6 @@ import session from "express-session";
 import { postgresStorage } from "./storage-pg";
 import MemoryStore from "memorystore";
 import dotenv from "dotenv";
-import passport from "passport";
 
 // 加载环境变量
 dotenv.config();
@@ -52,9 +51,7 @@ if (usePostgres) {
 // 应用会话中间件
 app.use(session(sessionConfig));
 
-// 初始化Passport
-app.use(passport.initialize());
-app.use(passport.session());
+// 注意: Passport初始化将在setupAuth中完成，这里不再重复初始化
 
 // 添加调试中间件
 app.use((req, res, next) => {

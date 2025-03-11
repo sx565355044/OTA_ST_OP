@@ -2,7 +2,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express, Request, Response, NextFunction } from "express";
 import { postgresStorage as storage } from "./storage-pg";
-import { comparePassword } from "./utils/encryption";
+import { comparePassword, encryptPassword } from "./utils/encryption";
 import { User as SelectUser } from "@shared/schema";
 
 declare global {
@@ -74,10 +74,13 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // 加密密码
+      const hashedPassword = await encryptPassword(password);
+      
       // 创建新用户
       const newUser = await storage.createUser({
         username,
-        password,
+        password: hashedPassword,
         role: req.body.role || 'user',
         hotel: req.body.hotel || null
       });
