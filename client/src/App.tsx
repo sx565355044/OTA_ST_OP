@@ -10,6 +10,7 @@ import Strategies from "@/pages/strategies";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
+import Register from "@/pages/register";
 import Admin from "@/pages/admin";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +22,8 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Login} />
+        <Route path="/register" component={Register} />
+        <Route path="/login" component={Login} />
         <Route path="*" component={Login} />
       </Switch>
     );

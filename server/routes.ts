@@ -21,6 +21,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // Authentication routes
+  // Register new hotel manager
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password, hotel, fullName } = req.body;
+      
+      // Validate required fields
+      if (!username || !password || !hotel) {
+        return res.status(400).json({ message: "Username, password and hotel name are required" });
+      }
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(409).json({ message: "Username already exists" });
+      }
+      
+      // Hash password and create user
+      const hashedPassword = await encryptPassword(password);
+      
+      const userSchema = insertUserSchema.parse({
+        username,
+        password: hashedPassword,
+        role: "manager", // Default role for self-registration is manager
+        hotel,
+        fullName: fullName || username
+      });
+      
+      const newUser = await storage.createUser(userSchema);
+      
+      // Create default settings for the new user
+      const defaultSettings = insertSettingsSchema.parse({
+        userId: newUser.id,
+        theme: "light",
+        language: "zh-CN",
+        notificationsEnabled: true,
+        autoRefreshInterval: 300, // 5 minutes
+        defaultStrategyPreference: "balanced"
+      });
+      
+      await storage.createSettings(defaultSettings);
+      
+      // Set user in session (auto login)
+      if (req.session) {
+        req.session.userId = newUser.id;
+      }
+      
+      // Return user info (excluding password)
+      const { password: _, ...userInfo } = newUser;
+      return res.status(201).json(userInfo);
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;

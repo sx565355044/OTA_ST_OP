@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { ButtonFix } from '@/components/ui/button-fix';
@@ -115,6 +115,17 @@ export default function Login() {
             </div>
           </form>
 
+          <div className="mt-6 text-center">
+            <div className="text-sm">
+              <p className="text-gray-600">
+                还没有账号？ 
+                <Link href="/register" className="ml-1 font-medium text-primary-600 hover:text-primary-500">
+                  立即注册
+                </Link>
+              </p>
+            </div>
+          </div>
+          
           {import.meta.env.MODE !== 'production' && (
             <div className="mt-6">
               <div className="relative">
