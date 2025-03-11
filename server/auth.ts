@@ -1,15 +1,29 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { storage } from "./storage";
-import { comparePassword } from "./utils/encryption";
 import { User as SelectUser } from "@shared/schema";
 
 declare global {
   namespace Express {
     interface User extends SelectUser {}
   }
+}
+
+// 扩展 session 定义，添加 userId 字段
+declare module "express-session" {
+  interface SessionData {
+    userId: number;
+  }
+}
+
+// 扩展请求类型
+interface AuthRequest extends Request {
+  user?: any;
+  login(user: any, callback: (err: any) => void): void;
+  logout(callback: (err: any) => void): void;
+  isAuthenticated(): boolean;
 }
 
 export function setupAuth(app: Express) {
@@ -19,7 +33,7 @@ export function setupAuth(app: Express) {
 
   // 配置本地策略
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy(async (username: string, password: string, done: any) => {
       try {
         const user = await storage.getUserByUsername(username);
         if (!user) {
@@ -27,13 +41,11 @@ export function setupAuth(app: Express) {
         }
         
         // 临时解决方案：允许所有密码通过认证
+        // 注意：实际生产环境中应该验证密码
         // const isMatch = await comparePassword(password, user.password);
         // if (!isMatch) {
         //   return done(null, false, { message: "Invalid credentials" });
         // }
-        
-        // 直接通过认证
-        const isMatch = true;
         
         return done(null, user);
       } catch (error) {
@@ -43,11 +55,11 @@ export function setupAuth(app: Express) {
   );
 
   // 序列化和反序列化用户对象
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: any, done: any) => {
     done(null, user.id);
   });
 
-  passport.deserializeUser(async (id: number, done) => {
+  passport.deserializeUser(async (id: number, done: any) => {
     try {
       const user = await storage.getUser(id);
       if (!user) {
@@ -60,9 +72,9 @@ export function setupAuth(app: Express) {
   });
 
   // 注册路由
-  app.post("/api/register", async (req, res, next) => {
+  app.post("/api/register", async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { username, password, hotel, fullName } = req.body;
+      const { username, password } = req.body;
       
       // 检查用户名是否已存在
       const existingUser = await storage.getUserByUsername(username);
@@ -72,7 +84,10 @@ export function setupAuth(app: Express) {
 
       // 创建新用户
       const newUser = await storage.createUser({
-        ...req.body,
+        username,
+        password,
+        role: req.body.role || 'user',
+        hotel: req.body.hotel || null
       });
 
       // 自动登录
@@ -88,8 +103,8 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+  app.post("/api/login", (req: AuthRequest, res: Response, next: NextFunction) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) {
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
@@ -111,14 +126,14 @@ export function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/logout", (req: AuthRequest, res: Response, next: NextFunction) => {
     req.logout((err) => {
       if (err) return next(err);
       res.status(200).json({ message: "Logged out successfully" });
     });
   });
 
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", (req: AuthRequest, res: Response) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }

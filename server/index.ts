@@ -2,31 +2,45 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
+import { postgresStorage } from "./storage-pg";
 import MemoryStore from "memorystore";
+import dotenv from "dotenv";
+
+// 加载环境变量
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// 创建内存会话存储
-const MemoryStoreSession = MemoryStore(session);
+// 根据环境变量决定使用内存存储还是 PostgreSQL 存储
+const usePostgres = process.env.USE_POSTGRES === "true";
 
-// 设置Session
-app.use(session({
-  secret: "otainsight_secret_key",
+// 设置 Session 配置
+const sessionSecret = process.env.SESSION_SECRET || "otainsight_secret_key";
+const sessionConfig: session.SessionOptions = {
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: false, // 开发环境中使用HTTP
+    secure: process.env.NODE_ENV === "production", // 生产环境中使用 HTTPS
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7天
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/'
-  },
-  store: new MemoryStoreSession({
-    checkPeriod: 86400000 // 清理过期会话：每24小时
-  })
-}));
+  }
+};
+
+// 添加会话存储
+const MemoryStoreSession = MemoryStore(session);
+if (usePostgres) {
+  sessionConfig.store = postgresStorage.sessionStore;
+} else {
+  sessionConfig.store = new MemoryStoreSession({ checkPeriod: 86400000 });
+}
+
+// 应用会话中间件
+app.use(session(sessionConfig));
 
 // 添加调试中间件
 app.use((req, res, next) => {
