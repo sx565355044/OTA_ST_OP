@@ -112,35 +112,55 @@ export class MemStorage implements IStorage {
     this.nextParamId = 1;
     this.nextTemplateId = 1;
     
-    // Initialize with default data
+    // Initialize with default data (synchronously)
     this.initializeDefaultData();
   }
   
-  // Initializes default data for demo purposes
-  private async initializeDefaultData() {
-    // Create default admin user
-    const adminUser: InsertUser = {
+  // 初始化默认数据 (同步方式)
+  private initializeDefaultData() {
+    const now = new Date();
+    
+    // 创建管理员用户
+    const adminId = this.nextUserId++;
+    const admin: User = { 
+      id: adminId,
       username: "admin",
       password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // password: admin
       role: "admin",
       hotel: "星星酒店集团",
+      createdAt: now
     };
+    this.users.set(adminId, admin);
     
-    await this.createUser(adminUser);
-    
-    // Create default manager user
-    const managerUser: InsertUser = {
+    // 创建经理用户
+    const managerId = this.nextUserId++;
+    const manager: User = { 
+      id: managerId,
       username: "总经理",
       password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // password: admin
       role: "manager",
       hotel: "星星酒店连锁",
+      createdAt: now
     };
+    this.users.set(managerId, manager);
     
-    const user = await this.createUser(managerUser);
+    // 添加测试用户，便于演示
+    const testUserId = this.nextUserId++;
+    const testUser: User = { 
+      id: testUserId,
+      username: "snorkeler",
+      password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // password: admin
+      role: "manager",
+      hotel: "珠海海景酒店",
+      createdAt: now
+    };
+    this.users.set(testUserId, testUser);
     
-    // Create default OTA accounts
-    const ctrip: InsertOtaAccount = {
-      userId: user.id,
+    // 创建默认OTA账户（同步方式）
+    const ctripId = this.nextAccountId++;
+    const ctrip: OtaAccount = {
+      id: ctripId,
+      userId: manager.id,
       name: "携程旅行",
       shortName: "携程",
       url: "https://merchant.ctrip.com",
@@ -148,11 +168,15 @@ export class MemStorage implements IStorage {
       password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // Encrypted (not real)
       accountType: "企业账户",
       status: "已连接",
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: now,
+      createdAt: now
     };
+    this.otaAccounts.set(ctripId, ctrip);
     
-    const meituan: InsertOtaAccount = {
-      userId: user.id,
+    const meituanId = this.nextAccountId++;
+    const meituan: OtaAccount = {
+      id: meituanId,
+      userId: manager.id,
       name: "美团酒店",
       shortName: "美团",
       url: "https://eb.meituan.com",
@@ -160,11 +184,15 @@ export class MemStorage implements IStorage {
       password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // Encrypted (not real)
       accountType: "商家账户",
       status: "已连接",
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: now,
+      createdAt: now
     };
+    this.otaAccounts.set(meituanId, meituan);
     
-    const fliggy: InsertOtaAccount = {
-      userId: user.id,
+    const fliggyId = this.nextAccountId++;
+    const fliggy: OtaAccount = {
+      id: fliggyId,
+      userId: manager.id,
       name: "飞猪旅行",
       shortName: "飞猪",
       url: "https://merchant.fliggy.com",
@@ -172,53 +200,77 @@ export class MemStorage implements IStorage {
       password: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa", // Encrypted (not real)
       accountType: "商家账户",
       status: "未连接",
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: now,
+      createdAt: now
     };
+    this.otaAccounts.set(fliggyId, fliggy);
     
-    const ctripAccount = await this.createOtaAccount(ctrip);
-    const meituanAccount = await this.createOtaAccount(meituan);
-    const fliggyAccount = await this.createOtaAccount(fliggy);
+    // 创建默认活动（同步方式）
+    const activity1Id = this.nextActivityId++;
+    const startDate1 = new Date();
+    startDate1.setDate(startDate1.getDate() - 5);
     
-    // Create default activities
-    const now = new Date();
+    const endDate1 = new Date();
+    endDate1.setMonth(endDate1.getMonth() + 1);
+    endDate1.setDate(endDate1.getDate() + 10);
     
-    // Activity 1
-    await this.createActivity({
-      platformId: ctripAccount.id,
+    const activity1: Activity = {
+      id: activity1Id,
+      platformId: ctripId,
       name: "暑期特惠房",
       description: "高级大床房 8.5折",
-      startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5).toISOString(),
-      endDate: new Date(now.getFullYear(), now.getMonth() + 1, now.getDate() + 10).toISOString(),
+      startDate: startDate1,
+      endDate: endDate1,
       discount: "15% 折扣",
       commissionRate: "8%",
       roomTypes: ["高级大床房", "豪华套房"],
       status: "进行中",
       tag: "特惠",
       participationStatus: "已参与",
-    });
+      createdAt: now
+    };
+    this.activities.set(activity1Id, activity1);
     
-    // Activity 2
-    await this.createActivity({
-      platformId: meituanAccount.id,
+    const activity2Id = this.nextActivityId++;
+    const startDate2 = new Date();
+    startDate2.setDate(startDate2.getDate() + 3);
+    
+    const endDate2 = new Date();
+    endDate2.setDate(endDate2.getDate() + 5);
+    
+    const activity2: Activity = {
+      id: activity2Id,
+      platformId: meituanId,
       name: "周末特惠",
       description: "所有房型周末入住减100",
-      startDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3).toISOString(),
-      endDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5).toISOString(),
+      startDate: startDate2,
+      endDate: endDate2,
       discount: "满减 100元",
       commissionRate: "10%",
       roomTypes: ["所有房型"],
       status: "待开始",
       tag: "限时",
       participationStatus: "已参与",
-    });
+      createdAt: now
+    };
+    this.activities.set(activity2Id, activity2);
     
-    // Activity 3
-    await this.createActivity({
-      platformId: fliggyAccount.id,
+    const activity3Id = this.nextActivityId++;
+    const startDate3 = new Date();
+    startDate3.setMonth(startDate3.getMonth() + 2);
+    startDate3.setDate(20);
+    
+    const endDate3 = new Date();
+    endDate3.setMonth(endDate3.getMonth() + 3);
+    endDate3.setDate(12);
+    
+    const activity3: Activity = {
+      id: activity3Id,
+      platformId: fliggyId,
       name: "双十一预售",
       description: "远期预订特惠活动",
-      startDate: new Date(now.getFullYear(), now.getMonth() + 2, 20).toISOString(),
-      endDate: new Date(now.getFullYear(), now.getMonth() + 3, 12).toISOString(),
+      startDate: startDate3,
+      endDate: endDate3,
       discount: "20% 折扣",
       commissionRate: "12%",
       roomTypes: ["标准房", "商务房", "套房"],
@@ -226,59 +278,96 @@ export class MemStorage implements IStorage {
       status: "未决定",
       tag: "热门",
       participationStatus: "未参与",
-    });
+      createdAt: now
+    };
+    this.activities.set(activity3Id, activity3);
     
-    // Create default strategy parameters
-    await this.createStrategyParameter({
+    // 创建默认策略参数（同步方式）
+    const param1Id = this.nextParamId++;
+    const param1: StrategyParameter = {
+      id: param1Id,
       name: "关注远期预定",
       description: "偏向未来日期的预订",
       paramKey: "future_booking_weight",
       value: 5.0,
-    });
+      createdAt: now,
+      updatedAt: now
+    };
+    this.strategyParams.set(param1Id, param1);
     
-    await this.createStrategyParameter({
+    const param2Id = this.nextParamId++;
+    const param2: StrategyParameter = {
+      id: param2Id,
       name: "关注成本最小",
       description: "优先考虑佣金成本较低的活动",
       paramKey: "cost_optimization_weight",
       value: 7.0,
-    });
+      createdAt: now,
+      updatedAt: now
+    };
+    this.strategyParams.set(param2Id, param2);
     
-    await this.createStrategyParameter({
+    const param3Id = this.nextParamId++;
+    const param3: StrategyParameter = {
+      id: param3Id,
       name: "关注展示最优化",
       description: "优先考虑平台展示效果",
       paramKey: "visibility_optimization_weight",
       value: 6.0,
-    });
+      createdAt: now,
+      updatedAt: now
+    };
+    this.strategyParams.set(param3Id, param3);
     
-    await this.createStrategyParameter({
+    const param4Id = this.nextParamId++;
+    const param4: StrategyParameter = {
+      id: param4Id,
       name: "关注当日OCC",
       description: "优先考虑提升当日入住率",
       paramKey: "daily_occupancy_weight",
       value: 4.0,
-    });
+      createdAt: now,
+      updatedAt: now
+    };
+    this.strategyParams.set(param4Id, param4);
     
-    await this.createStrategyParameter({
+    const param5Id = this.nextParamId++;
+    const param5: StrategyParameter = {
+      id: param5Id,
       name: "平衡长短期收益",
       description: "平衡即时收益与长期声誉",
       paramKey: "revenue_balance_weight",
       value: 8.0,
-    });
+      createdAt: now,
+      updatedAt: now
+    };
+    this.strategyParams.set(param5Id, param5);
     
-    // Create default user settings
-    await this.createSettings({
-      userId: user.id,
+    // 创建默认用户设置（同步方式）
+    const settingsId = this.nextSettingId++;
+    const settings: Setting = {
+      id: settingsId,
+      userId: manager.id,
       notificationsEnabled: true,
       autoRefreshInterval: 30,
       defaultStrategyPreference: "balanced",
-    });
+      createdAt: now,
+      updatedAt: now
+    };
+    this.settings.set(settingsId, settings);
     
-    // Create API key (encrypted, not real)
-    await this.createApiKey({
-      userId: user.id,
+    // 创建API密钥（同步方式）
+    const apiKeyId = this.nextApiKeyId++;
+    const apiKey: ApiKey = {
+      id: apiKeyId,
+      userId: manager.id,
       service: "deepseek",
       encryptedKey: "$2b$10$dUxlkALV.dkFQwQD6nYiJ.X9IKFPPxH.8MH9DCYfxrs9bUMnHHrwa",
       model: "DeepSeek-R1-Plus",
-    });
+      lastUpdated: now,
+      createdAt: now
+    };
+    this.apiKeys.set(apiKeyId, apiKey);
   }
 
   // User methods
