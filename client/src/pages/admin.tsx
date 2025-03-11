@@ -7,6 +7,16 @@ import { ButtonFix } from '@/components/ui/button-fix';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 
+/**
+ * 策略参数管理页面
+ * 注意：已经从参数列表中移除了"收益"选项，因为收益是最终目标，而不是可调整的参数。
+ * 现在系统专注于调整以下四个关键参数：
+ * 1. 长期预订 - 关注未来长周期的预订
+ * 2. 成本效率 - 关注推广成本和投入产出比
+ * 3. 展示优化 - 关注在OTA平台的展示效果
+ * 4. 入住率 - 关注当前的入住率提升
+ */
+
 // 定义策略参数类型
 interface StrategyParameter {
   id: string;
