@@ -1,19 +1,19 @@
-import pkg from 'pg';
-const { Pool } = pkg;
 import {
   User, InsertUser, OtaAccount, InsertOtaAccount, Activity, InsertActivity,
   Strategy, InsertStrategy, ApiKey, InsertApiKey, Setting, InsertSetting,
   StrategyParameter, InsertStrategyParameter, StrategyTemplate, InsertStrategyTemplate,
   users, otaAccounts, activities, strategies, apiKeys, settings, 
   strategyParameters, strategyTemplates
-} from '@shared/schema';
+} from '../shared/schema';
 import { db } from './db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { IStorage } from './storage';
 import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
+import pg from 'pg';
 
 // 创建 PostgreSQL 连接池
+const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
@@ -132,14 +132,17 @@ export class PostgresStorage implements IStorage {
 
   async getAppliedStrategiesByUserId(userId: number): Promise<Strategy[]> {
     const result = await db.select().from(strategies)
-      .where(eq(strategies.userId, userId))
-      .where(eq(strategies.isApplied, true));
+      .where(and(
+        eq(strategies.userId, userId),
+        strategies.appliedAt.isNotNull()
+      ))
+      .orderBy(strategies.appliedAt);
     return result;
   }
 
   async getRecentAppliedStrategies(limit: number): Promise<Strategy[]> {
     const result = await db.select().from(strategies)
-      .where(eq(strategies.isApplied, true))
+      .where(strategies.appliedAt.isNotNull())
       .orderBy(strategies.appliedAt)
       .limit(limit);
     return result;
@@ -166,8 +169,10 @@ export class PostgresStorage implements IStorage {
 
   async getApiKeyByUserIdAndService(userId: number, service: string): Promise<ApiKey | undefined> {
     const result = await db.select().from(apiKeys)
-      .where(eq(apiKeys.userId, userId))
-      .where(eq(apiKeys.service, service));
+      .where(and(
+        eq(apiKeys.userId, userId),
+        eq(apiKeys.service, service)
+      ));
     return result[0];
   }
 
