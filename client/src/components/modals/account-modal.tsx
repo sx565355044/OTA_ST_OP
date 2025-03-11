@@ -20,7 +20,13 @@ const accountSchema = z.object({
   username: z.string().min(1, '请输入用户名'),
   password: z.string().min(1, '请输入密码'),
   verification_method: z.string(),
-  phone_number: z.string().optional(),
+  phone_number: z.string()
+    .optional()
+    .refine(val => {
+      if (!val) return true;
+      // 检查中国大陆手机号格式 (1xx-xxxx-xxxx)
+      return /^1[3-9]\d{9}$/.test(val);
+    }, { message: '请输入有效的中国大陆手机号码' }),
   account_type: z.string().min(1, '请选择账户类型'),
 });
 
@@ -489,24 +495,40 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   </div>
                   
                   {verificationMethod === 'sms' && (
-                    <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-                      <p className="text-sm text-blue-800">
-                        <strong>携程验证码登录说明：</strong> 携程商家平台(ebooking.ctrip.com)使用短信验证码进行安全登录。
-                        选择此项后，您需要前往携程平台获取6位验证码并输入到我们的系统以完成账户添加。
-                      </p>
-                      <div className="mt-2">
-                        <a 
-                          href="https://ebooking.ctrip.com/home/mainland" 
-                          target="_blank" 
-                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                          访问携程商家平台
-                        </a>
+                    <>
+                      <div className="mt-4">
+                        <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">手机号码</label>
+                        <input
+                          {...register('phone_number')}
+                          id="phone_number"
+                          type="tel"
+                          className="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                          placeholder="请输入接收验证码的手机号码"
+                        />
+                        {errors.phone_number && (
+                          <p className="mt-1 text-sm text-red-600">{errors.phone_number.message}</p>
+                        )}
                       </div>
-                    </div>
+                    
+                      <div className="p-3 bg-blue-50 rounded-md border border-blue-200 mt-2">
+                        <p className="text-sm text-blue-800">
+                          <strong>携程验证码登录说明：</strong> 携程商家平台(ebooking.ctrip.com)使用短信验证码进行安全登录。
+                          选择此项后，您需要前往携程平台获取6位验证码并输入到我们的系统以完成账户添加。
+                        </p>
+                        <div className="mt-2">
+                          <a 
+                            href="https://ebooking.ctrip.com/home/mainland" 
+                            target="_blank" 
+                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            访问携程商家平台
+                          </a>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   <div>
@@ -556,7 +578,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                     username: 'test_user',
                     password: 'password123',
                     verification_method: 'sms',
-                    phone_number: '',
+                    phone_number: '13812345678',
                     account_type: '商家账户'
                   };
                   setAccountCreationData(mockData);

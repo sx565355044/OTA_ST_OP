@@ -15,23 +15,81 @@ export default function Dashboard() {
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
 
+  // 定义接口类型
+  interface DashboardStats {
+    connectedPlatformsCount: number;
+    todayActivitiesCount: number;
+    activeParticipationCount: number;
+  }
+
+  interface OtaAccount {
+    id: number;
+    name: string;
+    shortName?: string;
+    type: string;
+    username: string;
+    accountType: string;
+    status: string;
+    lastUpdated: string;
+  }
+
+  interface Activity {
+    id: number;
+    name: string;
+    description: string;
+    platform: {
+      id: number;
+      name: string;
+      shortName?: string;
+    };
+    startDate: string;
+    endDate: string;
+    timeRemaining: string;
+    discount: string;
+    commissionRate: string;
+    status: string;
+    tag?: string;
+  }
+
+  interface Strategy {
+    id: string;
+    name: string;
+    description: string;
+    isRecommended: boolean;
+    metrics: {
+      projectedGrowth: {
+        value: string;
+        percentage: number;
+        type: string;
+      };
+      complexity: {
+        value: string;
+        percentage: number;
+      };
+    };
+  }
+
   // Fetch dashboard data
-  const { data: dashboardStats } = useQuery({
+  const { data: dashboardStats = { 
+    connectedPlatformsCount: 0, 
+    todayActivitiesCount: 0, 
+    activeParticipationCount: 0 
+  } } = useQuery<DashboardStats>({
     queryKey: ['/api/dashboard/stats'],
     staleTime: 60 * 1000, // 1 minute
   });
 
-  const { data: accounts } = useQuery({
+  const { data: accounts = [] } = useQuery<OtaAccount[]>({
     queryKey: ['/api/accounts'],
     staleTime: 60 * 1000, // 1 minute
   });
 
-  const { data: activities } = useQuery({
+  const { data: activities = [] } = useQuery<Activity[]>({
     queryKey: ['/api/activities'],
     staleTime: 60 * 1000, // 1 minute
   });
 
-  const { data: strategies } = useQuery({
+  const { data: strategies = [] } = useQuery<Strategy[]>({
     queryKey: ['/api/strategies/recommendations'],
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -88,7 +146,16 @@ export default function Dashboard() {
             </div>
             
             <AccountsTable 
-              accounts={accounts || []} 
+              accounts={accounts.map(a => ({
+                id: a.id,
+                name: a.name,
+                shortName: a.shortName,
+                type: a.type,
+                username: a.username,
+                accountType: a.accountType,
+                status: a.status,
+                lastUpdated: a.lastUpdated
+              }))}
               showActions={true} 
               className="mt-4" 
             />
@@ -137,7 +204,7 @@ export default function Dashboard() {
               </div>
               
               <div className="px-6 py-5 grid grid-cols-1 gap-6 md:grid-cols-3">
-                {strategies?.map((strategy) => (
+                {strategies.map((strategy: Strategy) => (
                   <StrategyCard
                     key={strategy.id}
                     strategy={strategy}
@@ -146,11 +213,11 @@ export default function Dashboard() {
                   />
                 ))}
                 
-                {!strategies || strategies.length === 0 ? (
+                {strategies.length === 0 && (
                   <div className="md:col-span-3 py-8 text-center">
                     <p className="text-gray-500">请设置DeepSeek API密钥以获取策略推荐</p>
                   </div>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
