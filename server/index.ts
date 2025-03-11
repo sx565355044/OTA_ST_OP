@@ -51,7 +51,8 @@ if (usePostgres) {
 // 应用会话中间件
 app.use(session(sessionConfig));
 
-// 注意: Passport初始化将在setupAuth中完成，这里不再重复初始化
+// 重要: 移除passport的初始化，确保只在setupAuth中初始化一次
+// Passport初始化将在registerRoutes/setupAuth中完成
 
 // 添加调试中间件
 app.use((req, res, next) => {
