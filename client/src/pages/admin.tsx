@@ -26,11 +26,13 @@ import {
 
 // 定义策略参数类型
 interface StrategyParameter {
-  id: string;
-  key: string;
+  id: number;
   name: string;
   description: string;
+  paramKey: string;  // 后端返回的参数键名为paramKey，不是key
   value: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // 定义策略模板类型
@@ -299,20 +301,35 @@ export default function Admin() {
 
   // 保存所有权重
   const saveAllWeights = () => {
-    const params = strategyParams as StrategyParameter[];
-    if (!params || params.length === 0) return;
+    // 检查是否为对象格式，并转换为数组
+    let paramsArray: StrategyParameter[] = [];
+    
+    if (strategyParams) {
+      // 如果是数组，直接使用
+      if (Array.isArray(strategyParams)) {
+        paramsArray = strategyParams;
+      }
+      // 如果是对象格式（非数组），则需要转换为数组
+      else if (typeof strategyParams === 'object') {
+        // 筛选出真正的参数对象，排除'recentStrategies'等非参数字段
+        paramsArray = Object.values(strategyParams)
+          .filter(item => item && typeof item === 'object' && 'id' in item && 'value' in item) as StrategyParameter[];
+      }
+    }
+    
+    if (paramsArray.length === 0) return;
     
     // 更新参数值
-    const updatedParams = params.map((param: StrategyParameter) => {
+    const updatedParams = paramsArray.map((param: StrategyParameter) => {
       let value = param.value;
       
       // 根据参数键名查找对应的权重值
-      if (param.key === 'longTermBooking') value = weights.longTermBooking;
-      else if (param.key === 'costEfficiency') value = weights.costEfficiency;
-      else if (param.key === 'visibility') value = weights.visibility;
-      else if (param.key === 'occupancyRate') value = weights.occupancyRate;
+      if (param.paramKey === 'future_booking_weight') value = weights.longTermBooking;
+      else if (param.paramKey === 'cost_optimization_weight') value = weights.costEfficiency;
+      else if (param.paramKey === 'visibility_optimization_weight') value = weights.visibility;
+      else if (param.paramKey === 'daily_occupancy_weight') value = weights.occupancyRate;
       
-      return { ...param, value };
+      return { id: param.id, value };
     });
     
     // 应用更新并打开保存为模板对话框
