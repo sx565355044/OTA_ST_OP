@@ -144,7 +144,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           username: accountData.username,
           password: accountData.password,
           verificationMethod: accountData.verification_method,
-          type: accountData.account_type,
+          accountType: accountData.account_type,
           // 在实际实现中，也可以将验证码传给后端进行二次验证
           verificationCode: code
         }),
@@ -213,7 +213,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           username: data.username,
           password: data.password,
           verificationMethod: data.verification_method,
-          type: data.account_type,
+          accountType: data.account_type, // 改为accountType而不是type
         }),
         credentials: 'include',
       });
@@ -311,7 +311,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
             </h3>
             <div className="mt-2">
               <p className="text-sm text-gray-500">
-                请在携程平台选择"SMS Code"登录选项，获取发送到您注册手机的验证码并输入下方
+                请登录携程商家平台(ebooking.ctrip.com)并完成短信验证步骤，将收到的6位验证码输入下方
               </p>
             </div>
             
@@ -347,10 +347,10 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   <strong>获取验证码步骤：</strong>
                 </p>
                 <ol className="mt-2 text-sm text-amber-800 list-decimal pl-5 space-y-1">
-                  <li>前往携程商家平台登录页面</li>
+                  <li>前往携程商家平台登录页面 <a href="https://ebooking.ctrip.com/home/mainland" target="_blank" className="underline">ebooking.ctrip.com</a></li>
                   <li>输入您的用户名和密码</li>
-                  <li>点击下方的"SMS Code"选项</li>
-                  <li>系统会向您注册的手机发送验证码</li>
+                  <li>如有提示，选择接收短信验证码的方式</li>
+                  <li>系统会向您注册的手机发送6位数验证码</li>
                   <li>收到短信后回到此处输入验证码</li>
                 </ol>
                 <div className="mt-3 text-right">
@@ -465,9 +465,21 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   {verificationMethod === 'sms' && (
                     <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
                       <p className="text-sm text-blue-800">
-                        <strong>携程验证码登录说明：</strong> 选择此项后，添加账户时将需要输入从携程平台获取的短信验证码。
-                        验证码将发送至您在携程平台注册的手机号。
+                        <strong>携程验证码登录说明：</strong> 携程商家平台(ebooking.ctrip.com)使用短信验证码进行安全登录。
+                        选择此项后，您需要前往携程平台获取6位验证码并输入到我们的系统以完成账户添加。
                       </p>
+                      <div className="mt-2">
+                        <a 
+                          href="https://ebooking.ctrip.com/home/mainland" 
+                          target="_blank" 
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          访问携程商家平台
+                        </a>
+                      </div>
                     </div>
                   )}
 
@@ -512,8 +524,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                 console.log('直接跳转到验证码界面');
                 // 创建一个模拟表单数据
                 const mockData: AccountFormValues = {
-                  platform_name: '携程',
-                  platform_url: 'https://merchant.ctrip.com',
+                  platform_name: '携程商家平台',
+                  platform_url: 'https://ebooking.ctrip.com/home/mainland',
                   username: 'test_user',
                   password: 'password123',
                   verification_method: 'sms',
