@@ -24,7 +24,10 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
-export const useAuth = () => useContext(AuthContext);
+// 创建自定义钩子函数用于访问认证上下文
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -60,11 +63,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 模拟延迟以更真实
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // 设置模拟用户数据
+        // 根据用户名设置模拟用户数据和角色
+        let role = 'manager'; // 默认角色
+
+        // 检查是否为管理员账户（用户名中包含 admin 或 管理员）
+        if (username.toLowerCase().includes('admin') || username.includes('管理员')) {
+          role = 'admin';
+        }
+        
         const mockUser = {
           id: 1,
           username: username || '总经理',
-          role: 'manager',
+          role: role,
           hotel: '星星酒店连锁'
         };
         

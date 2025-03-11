@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
 import { Layout } from '@/components/layout/sidebar';
 import { useToast } from '@/hooks/use-toast';
 import { ButtonFix } from '@/components/ui/button-fix';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLocation } from 'wouter';
 
 // 定义策略参数类型
 interface StrategyParameter {
@@ -31,8 +33,23 @@ interface Strategy {
 
 export default function Admin() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('standard');
+  
+  // 检查用户是否有管理员权限
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      toast({
+        title: "访问受限",
+        description: "您没有访问管理控制台的权限",
+        variant: "destructive"
+      });
+      // 如果用户不是管理员，重定向到首页
+      setLocation('/');
+    }
+  }, [user, setLocation, toast]);
   
   // 预设参数配置
   const paramPresets = {
