@@ -12,23 +12,57 @@ export interface ButtonFixProps extends React.ButtonHTMLAttributes<HTMLButtonEle
 
 export const ButtonFix = React.forwardRef<HTMLButtonElement, ButtonFixProps>(
   ({ className, variant = 'default', size = 'default', children, icon, ...props }, ref) => {
-    // 根据变体选择适当的背景色和文字色
+    // 根据变体选择适当的背景色和文字色（增强对比度）
     const getButtonStyle = () => {
       switch(variant) {
         case 'default':
-          return { backgroundColor: '#2563eb', color: 'white' };
+          return { 
+            backgroundColor: '#2563eb', 
+            color: 'white',
+            fontWeight: '500',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+          };
         case 'destructive':
-          return { backgroundColor: '#e11d48', color: 'white' };
+          return { 
+            backgroundColor: '#e11d48', 
+            color: 'white',
+            fontWeight: '500',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+          };
         case 'outline':
-          return { backgroundColor: 'transparent', color: '#374151', borderColor: '#d1d5db' };
+          return { 
+            backgroundColor: 'transparent', 
+            color: '#1e40af', 
+            borderColor: '#93c5fd', 
+            borderWidth: '1px',
+            fontWeight: '500'
+          };
         case 'secondary':
-          return { backgroundColor: '#f3f4f6', color: '#374151' };
+          return { 
+            backgroundColor: '#dbeafe', 
+            color: '#1e40af',
+            fontWeight: '500' 
+          };
         case 'ghost':
-          return { backgroundColor: 'transparent', color: '#374151' };
+          return { 
+            backgroundColor: 'transparent', 
+            color: '#1e40af',
+            fontWeight: '500'
+          };
         case 'link':
-          return { backgroundColor: 'transparent', color: '#2563eb', textDecoration: 'underline' };
+          return { 
+            backgroundColor: 'transparent', 
+            color: '#2563eb', 
+            textDecoration: 'underline',
+            fontWeight: '500'
+          };
         default:
-          return { backgroundColor: '#2563eb', color: 'white' };
+          return { 
+            backgroundColor: '#2563eb', 
+            color: 'white',
+            fontWeight: '500',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+          };
       }
     };
 

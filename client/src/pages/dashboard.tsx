@@ -80,7 +80,7 @@ export default function Dashboard() {
               <h2 className="text-lg leading-6 font-medium text-gray-900">OTA平台账户</h2>
               <button 
                 onClick={() => setIsAccountModalOpen(true)}
-                className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 <span className="material-icons text-sm mr-1">add</span>
                 添加账户
@@ -99,11 +99,11 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg leading-6 font-medium text-gray-900">当前活动</h2>
               <div className="flex space-x-3">
-                <button className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <button className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                   <span className="material-icons text-sm mr-1">refresh</span>
                   刷新
                 </button>
-                <button className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <button className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                   <span className="material-icons text-sm mr-1">filter_list</span>
                   筛选
                 </button>
@@ -125,7 +125,7 @@ export default function Dashboard() {
                   <h3 className="text-lg leading-6 font-medium text-gray-900">智能策略推荐</h3>
                   <button 
                     onClick={() => setIsApiKeyModalOpen(true)}
-                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     <span className="material-icons text-sm mr-1">vpn_key</span>
                     设置API密钥
