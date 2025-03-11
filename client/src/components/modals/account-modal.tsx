@@ -46,6 +46,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     reset,
     watch,
     control,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
@@ -92,6 +93,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   // 提示用户关于验证码的信息
   const showVerificationInstruction = async () => {
     try {
+      console.log('显示验证码说明');
       setIsLoadingVerification(true);
       // 简单模拟查询延迟
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -101,9 +103,12 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         description: "请前往携程商家平台获取验证码，然后在此输入",
         variant: "default",
       });
+      console.log('验证码说明显示完成，设置loading为false');
       setIsLoadingVerification(false);
+      console.log('验证码说明函数返回true');
       return true;
     } catch (error) {
+      console.log('验证码说明出错:', error);
       setIsLoadingVerification(false);
       toast({
         title: "操作失败",
@@ -167,6 +172,9 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   const accountMutation = useMutation({
     mutationFn: async (data: AccountFormValues) => {
       // 如果需要短信验证，显示验证码输入界面
+      console.log('账户处理函数:', data);
+      console.log('需要短信验证:', data.verification_method === 'sms');
+      console.log('是否编辑模式:', isEditing);
       if (data.verification_method === 'sms' && !isEditing) {
         // 先保存表单数据
         setAccountCreationData(data);
@@ -270,6 +278,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   };
   
   const onSubmit = (data: AccountFormValues) => {
+    console.log('表单提交:', data);
+    console.log('验证方式:', data.verification_method);
     accountMutation.mutate(data);
   };
   
@@ -465,6 +475,20 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
               : isEditing 
                 ? '保存修改' 
                 : '添加账户'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              // 用于测试的直接跳转到验证码界面的功能
+              if (!isEditing && verificationMethod === 'sms') {
+                console.log('直接跳转到验证码界面');
+                setAccountCreationData(getValues());
+                setShowVerificationStep(true);
+              }
+            }}
+            className="bg-blue-500 text-white mr-2 px-4 py-2 rounded-md sm:ml-2 sm:w-auto sm:text-sm"
+          >
+            测试验证码界面
           </button>
           <button
             type="button"
