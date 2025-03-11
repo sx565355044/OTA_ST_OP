@@ -113,9 +113,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use PORT env var or fallback to 5000
+  // Use environment variable for port with fallback to 3000
   // this serves both the API and the client
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT || 3000;
   server.listen({
     port,
     host: "0.0.0.0", // Listen on all interfaces
