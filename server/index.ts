@@ -44,8 +44,13 @@ const sessionConfig: session.SessionOptions = {
 // 添加会话存储
 const MemoryStoreSession = MemoryStore(session);
 if (usePostgres) {
+  if (!process.env.DATABASE_URL) {
+    console.error("DATABASE_URL is required when USE_POSTGRES=true");
+    throw new Error("DATABASE_URL is required when USE_POSTGRES=true");
+  }
   sessionConfig.store = postgresStorage.sessionStore;
   console.log("Using PostgreSQL session store");
+  console.log("Database connection string available:", !!process.env.DATABASE_URL);
 } else {
   sessionConfig.store = new MemoryStoreSession({ checkPeriod: 86400000 });
   console.log("Using Memory session store");
@@ -116,9 +121,14 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use environment variable for port with fallback to 5000
+  // Use environment variable for port with fallback to 3000
   // this serves both the API and the client
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT || 3000;
+
+  // Log port configuration for debugging
+  log(`Authentication setup with ALLOW_ANY_PASSWORD=${process.env.ALLOW_ANY_PASSWORD || false}`);
+  log(`Using PostgreSQL: ${usePostgres}`);
+  log(`Server configured to listen on port ${port}`);
   server.listen({
     port,
     host: "0.0.0.0", // Listen on all interfaces
