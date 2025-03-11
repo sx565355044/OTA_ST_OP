@@ -913,6 +913,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete strategy template" });
     }
   });
+  
+  // 创建基于权重的新策略模板
+  app.post("/api/admin/strategy-templates/create-from-weights", checkAuth, checkAdmin, async (req, res) => {
+    try {
+      const { name, description, weights } = req.body;
+      
+      // 验证必填字段
+      if (!name) {
+        return res.status(400).json({ message: "Template name is required" });
+      }
+      
+      if (!weights || typeof weights !== 'object') {
+        return res.status(400).json({ message: "Invalid weights configuration" });
+      }
+      
+      // 验证是否有所有必须的权重值
+      const requiredWeights = ['longTermBooking', 'costEfficiency', 'visibility', 'occupancyRate'];
+      for (const key of requiredWeights) {
+        if (typeof weights[key] !== 'number' || weights[key] < 0 || weights[key] > 10) {
+          return res.status(400).json({ 
+            message: `Invalid weight value for ${key}. Must be a number between 0 and 10.` 
+          });
+        }
+      }
+      
+      // 获取当前的策略参数
+      const params = await storage.getStrategyParameters();
+      
+      // 更新参数值
+      const paramUpdates = params.map(param => {
+        let value = param.value;
+        
+        // 根据参数键名应用相应的权重值
+        if (param.key === 'longTermBooking') value = weights.longTermBooking;
+        else if (param.key === 'costEfficiency') value = weights.costEfficiency;
+        else if (param.key === 'visibility') value = weights.visibility;
+        else if (param.key === 'occupancyRate') value = weights.occupancyRate;
+        
+        return { ...param, value };
+      });
+      
+      // 首先更新参数
+      for (const param of paramUpdates) {
+        await storage.updateStrategyParameter(param.id, { value: param.value });
+      }
+      
+      // 然后创建模板
+      const template = await storage.createStrategyTemplate({
+        name,
+        description: description || '',
+        addedAt: new Date()
+      });
+      
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating template from weights:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   return httpServer;
 }

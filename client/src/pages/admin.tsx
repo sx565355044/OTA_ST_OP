@@ -6,6 +6,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ButtonFix } from '@/components/ui/button-fix';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter
+} from '@/components/ui/dialog';
 
 /**
  * 策略参数管理页面
@@ -53,6 +61,11 @@ export default function Admin() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  
+  // 保存策略模板的对话框状态
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
   
   // 策略方向权重状态
   const [weights, setWeights] = useState<StrategyWeights>({
@@ -220,6 +233,70 @@ export default function Admin() {
     }));
   };
   
+  // 创建新的策略模板
+  const createTemplateFromWeights = useMutation({
+    mutationFn: async (data: { name: string; description: string }) => {
+      const response = await fetch('/api/admin/strategy-templates/create-from-weights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description,
+          weights: {
+            longTermBooking: weights.longTermBooking,
+            costEfficiency: weights.costEfficiency,
+            visibility: weights.visibility,
+            occupancyRate: weights.occupancyRate
+          }
+        }),
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create template from weights');
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/strategy-templates'] });
+      setSaveDialogOpen(false);
+      setTemplateName('');
+      setTemplateDescription('');
+      toast({
+        title: "模板创建成功",
+        description: "策略权重模板已成功创建",
+        variant: "success",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "模板创建失败",
+        description: error instanceof Error ? error.message : "未知错误",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // 处理模板创建对话框的提交
+  const handleSaveTemplate = () => {
+    if (!templateName.trim()) {
+      toast({
+        title: "无法创建模板",
+        description: "请输入策略模板名称",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    createTemplateFromWeights.mutate({
+      name: templateName,
+      description: templateDescription
+    });
+  };
+
   // 保存所有权重
   const saveAllWeights = () => {
     const params = strategyParams as StrategyParameter[];
@@ -238,8 +315,12 @@ export default function Admin() {
       return { ...param, value };
     });
     
-    // 应用更新
-    updateParamsMutation.mutate(updatedParams);
+    // 应用更新并打开保存为模板对话框
+    updateParamsMutation.mutate(updatedParams, {
+      onSuccess: () => {
+        setSaveDialogOpen(true);
+      }
+    });
   };
 
   // 处理模板添加
@@ -477,6 +558,59 @@ export default function Admin() {
           </div>
         </div>
       </div>
+
+      {/* 保存策略模板对话框 */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>保存为策略模板</DialogTitle>
+            <DialogDescription>
+              为当前权重设置创建一个模板，以便将来快速应用相同的策略方向
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="name" className="text-sm font-medium">
+                模板名称 <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-gray-300 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="输入描述性名称"
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="description" className="text-sm font-medium">
+                描述（可选）
+              </label>
+              <textarea
+                id="description"
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+                className="flex min-h-[80px] w-full rounded-md border border-gray-300 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="描述此策略模板的应用场景或特点"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <ButtonFix
+              variant="outline"
+              onClick={() => setSaveDialogOpen(false)}
+              disabled={createTemplateFromWeights.isPending}
+            >
+              取消
+            </ButtonFix>
+            <ButtonFix 
+              onClick={handleSaveTemplate}
+              disabled={createTemplateFromWeights.isPending}
+            >
+              {createTemplateFromWeights.isPending ? '保存中...' : '保存模板'}
+            </ButtonFix>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
