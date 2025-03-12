@@ -292,11 +292,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/accounts", checkAuth, upload.array('screenshots', 5), async (req, res) => {
+  app.post("/api/accounts", checkAuth, upload.array('screenshots', 10), async (req, res) => {
     try {
       const userId = req.session.userId;
       const accountData = req.body;
       const screenshotFiles = req.files as Express.Multer.File[] || [];
+      
+      // 验证是否有上传的截图
+      if (screenshotFiles.length === 0) {
+        return res.status(400).json({ 
+          message: "至少需要上传一张平台截图" 
+        });
+      }
       
       // 确保上传目录存在
       const screenshotsDir = path.join(process.cwd(), 'uploads', `account_${Date.now()}`);
@@ -304,8 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.mkdirSync(screenshotsDir, { recursive: true });
       }
       
-      // 提取主截图路径（第一张图）和所有截图路径
-      const mainScreenshotPath = screenshotFiles.length > 0 ? screenshotFiles[0].path : null;
+      // 获取所有截图路径
       const allScreenshotPaths = screenshotFiles.map(file => file.path);
       
       // 保存包含多图路径的JSON数据
@@ -315,94 +321,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
         uploadedAt: new Date()
       }));
       
-      // 首先尝试从第一张截图中检测平台信息
-      const platformDetectionResult = screenshotFiles.length > 0 
-        ? await processImage(screenshotFiles[0].path) 
-        : null;
+      // 存储每个截图的平台检测结果
+      const platformDetectionResults = [];
+      const createdAccounts = [];
+      const platformSet = new Set(); // 用于跟踪已创建的平台，避免重复
       
-      // 从OCR结果中提取平台信息
-      const detectedPlatform = platformDetectionResult?.detectedPlatform;
-      const platformName = detectedPlatform && detectedPlatform.confidence >= 10 
-        ? detectedPlatform.name 
-        : "未识别平台";
+      // 逐个处理每张截图
+      for (let i = 0; i < screenshotFiles.length; i++) {
+        const file = screenshotFiles[i];
         
-      console.log(`平台检测结果: ${JSON.stringify(detectedPlatform || '未检测到平台')}`);
-      
-      // 创建OTA账户的基本数据
-      const accountInfo = {
-        name: platformName, // 使用自动检测的平台名称
-        url: "vector_data", // 使用新占位符，表示我们使用向量数据存储
-        accountType: accountData.accountType || accountData.account_type,
-        userId,
-        status: "处理中", // 初始状态为处理中
-        username: "ocr_data", // 使用新默认值
-        password: "vector_storage", // 占位密码
-        shortName: platformName.length > 2 ? platformName.substring(0, 2) : platformName, // 使用平台名称的缩写
-        screenshotPath: mainScreenshotPath, // 只保存主截图路径，其他在screenshots.json中
-      };
-      
-      // 验证账户数据
-      const validatedData = insertOtaAccountSchema.parse(accountInfo);
-      
-      // 创建账户
-      const account = await storage.createOtaAccount(validatedData);
-      
-      // 如果有截图，进行OCR处理
-      if (screenshotFiles.length > 0) {
-        // 异步处理，不阻塞响应
-        (async () => {
-          try {
-            console.log(`开始处理账户 ${account.id} 的 ${screenshotFiles.length} 张图片...`);
+        try {
+          // 先输出匹配度信息用于调试
+          const result = await processImage(file.path);
+          platformDetectionResults.push(result);
+          
+          // 从OCR结果中提取平台信息
+          const detectedPlatform = result?.detectedPlatform;
+          
+          // 只有当置信度达到阈值且平台尚未创建时才创建新账户
+          if (detectedPlatform && detectedPlatform.confidence >= 10 && !platformSet.has(detectedPlatform.code)) {
+            // 记录此平台已被处理
+            platformSet.add(detectedPlatform.code);
             
-            // 处理所有截图并提取数据
-            const ocrResult = await processMultipleImages(allScreenshotPaths);
+            const platformName = detectedPlatform.name;
+            console.log(`平台自动识别结果: ${JSON.stringify(detectedPlatform)}`);
             
-            // 将OCR结果转换为向量数据并存储
-            const vectorData = await vectorStorage.storeOcrResult(ocrResult, account.id, allScreenshotPaths);
+            // 创建OTA账户的基本数据
+            const accountInfo = {
+              name: platformName, // 使用自动检测的平台名称
+              url: "vector_data", // 使用新占位符，表示我们使用向量数据存储
+              accountType: accountData.accountType || accountData.account_type || "酒店",
+              userId,
+              status: "处理中", // 初始状态为处理中
+              username: "ocr_data", // 使用新默认值
+              password: "vector_storage", // 占位密码
+              shortName: platformName.length > 2 ? platformName.substring(0, 2) : platformName, // 使用平台名称的缩写
+              screenshotPath: file.path, // 保存当前截图路径为主截图
+            };
             
-            // 更新账户状态为已连接
-            await storage.updateOtaAccount(account.id, {
-              status: "已连接",
-              lastUpdated: new Date()
-            });
-            
-            console.log(`账户 ${account.id} 的截图处理完成，成功创建向量数据: ${vectorData.id}`);
-          } catch (error) {
-            console.error(`处理账户 ${account.id} 的截图时出错:`, error);
-            
-            // 更新账户状态为错误
-            await storage.updateOtaAccount(account.id, {
-              status: "处理失败",
-              lastUpdated: new Date()
-            });
+            try {
+              // 验证账户数据
+              const validatedData = insertOtaAccountSchema.parse(accountInfo);
+              
+              // 创建账户
+              const account = await storage.createOtaAccount(validatedData);
+              createdAccounts.push(account);
+              
+              // 异步处理当前图片的OCR
+              (async () => {
+                try {
+                  console.log(`开始处理账户 ${account.id} 的图片...`);
+                  
+                  // 将OCR结果转换为向量数据并存储
+                  const vectorData = await vectorStorage.storeOcrResult(result, account.id, [file.path]);
+                  
+                  // 更新账户状态为已连接
+                  await storage.updateOtaAccount(account.id, {
+                    status: "已连接",
+                    lastUpdated: new Date()
+                  });
+                  
+                  console.log(`账户 ${account.id} 的截图处理完成，成功创建向量数据: ${vectorData.id}`);
+                } catch (error) {
+                  console.error(`处理账户 ${account.id} 的截图时出错:`, error);
+                  
+                  // 更新账户状态为错误
+                  await storage.updateOtaAccount(account.id, {
+                    status: "处理失败",
+                    lastUpdated: new Date()
+                  });
+                }
+              })();
+            } catch (error) {
+              console.error(`创建平台 ${platformName} 的账户失败:`, error);
+            }
+          } else if (detectedPlatform) {
+            console.log(`平台 ${detectedPlatform.name} 置信度不足或已创建，跳过`);
+          } else {
+            console.log(`未检测到平台信息，跳过第 ${i+1} 张图片`);
           }
-        })();
-        
-        // 获取更新后的账户信息
-        const updatedAccount = await storage.getOtaAccount(account.id);
-        if (updatedAccount) {
-          // 不要返回密码信息
-          const { password: _, ...accountInfo } = updatedAccount;
-          return res.status(201).json({
-            ...accountInfo,
-            message: "账户已创建，截图正在后台处理中",
-            screenshotCount: screenshotFiles.length
-          });
+        } catch (error) {
+          console.error(`处理第 ${i+1} 张图片时出错:`, error);
         }
       }
       
-      // 不要返回密码和会话数据
-      const { password: _, ...responseData } = account;
-      
-      res.status(201).json(responseData);
+      // 返回创建的账户信息
+      if (createdAccounts.length > 0) {
+        const accountsInfo = createdAccounts.map(account => {
+          const { password: _, ...info } = account;
+          return info;
+        });
+        
+        return res.status(201).json({
+          accounts: accountsInfo,
+          message: `成功创建 ${accountsInfo.length} 个平台账户，截图正在后台处理中`,
+          screenshotCount: screenshotFiles.length
+        });
+      } else {
+        return res.status(200).json({
+          message: "未能检测到任何有效平台，请尝试上传更清晰的截图",
+          screenshotCount: screenshotFiles.length
+        });
+      }
     } catch (error) {
       console.error("Error creating account:", error);
       
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid account data", errors: error.errors });
+        return res.status(400).json({ message: "无效的账户数据", errors: error.errors });
       }
       
-      res.status(500).json({ message: "Failed to create account" });
+      res.status(500).json({ message: "创建账户失败" });
     }
   });
 
