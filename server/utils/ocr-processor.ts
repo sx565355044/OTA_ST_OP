@@ -5,7 +5,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { createWorker } from 'tesseract.js';
+import { deepseekOcrService } from '../services/deepseek-ocr';
 
 // OCR处理结果接口
 // 平台识别结果类型
@@ -50,16 +50,14 @@ export interface OcrResult {
  */
 export async function extractTextFromImage(imagePath: string): Promise<{ text: string; confidence: number }> {
   try {
-    const worker = await createWorker('chi_sim+eng');
-    const { data } = await worker.recognize(imagePath);
-    await worker.terminate();
-    
+    // 使用DeepSeek OCR服务
+    const result = await deepseekOcrService.performOcr(imagePath);
     return {
-      text: data.text,
-      confidence: data.confidence
+      text: result.text,
+      confidence: result.confidence
     };
   } catch (error) {
-    console.error('OCR处理失败:', error);
+    console.error('DeepSeek OCR处理失败:', error);
     throw new Error('文本提取失败');
   }
 }

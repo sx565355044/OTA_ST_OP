@@ -129,6 +129,9 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       }
       
       try {
+        console.log(`发送${isEditing ? '编辑' : '创建'}请求到 ${url}`);
+        console.log('表单数据字段:', [...formData.entries()].map(e => e[0]));
+        
         const response = await fetch(url, {
           method,
           body: formData,
@@ -138,7 +141,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           console.error(`请求失败: ${response.status} ${response.statusText}`, errorData);
-          throw new Error(`账户${isEditing ? '更新' : '创建'}失败: ${response.statusText}`);
+          throw new Error(`账户${isEditing ? '更新' : '创建'}失败: ${errorData.message || response.statusText}`);
         }
         
         const result = await response.json();

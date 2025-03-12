@@ -945,8 +945,8 @@ async function processOcrAndCreateActivity(platformId: number, screenshotPaths: 
       status: (() => {
         try {
           const now = new Date();
-          const startDate = activityData.startDate as Date;
-          const endDate = activityData.endDate as Date;
+          const startDate = new Date(ocrResult.extractedData.startDate || new Date());
+          const endDate = new Date(ocrResult.extractedData.endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
           
           if (startDate > now) {
             return "待开始";
