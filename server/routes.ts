@@ -562,35 +562,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 已删除活动参与和离开的相关API路由，因为系统现在专注于策略生成，不再支持活动参与操作
 
   // Refresh activities (scrape from OTA platforms)
-  // 上传活动截图API - 支持多图OCR识别
+  // 上传活动截图API - 支持多图OCR识别和自动识别平台
   app.post("/api/activities/screenshots", checkAuth, upload.array('screenshots', 10), async (req, res) => {
     try {
       const userId = req.session.userId;
-      const { platformId, autoOcr = 'true' } = req.body;
+      const { autoOcr = 'true', platformId } = req.body;
+      // platformId可选，优先使用自动检测
       const screenshotFiles = req.files as Express.Multer.File[] || [];
-      
-      if (!platformId) {
-        return res.status(400).json({ message: "Platform ID is required" });
-      }
       
       if (screenshotFiles.length === 0) {
         return res.status(400).json({ message: "至少需要上传一张活动截图" });
       }
       
-      // 检查平台ID格式
-      let platformIdInt: number;
-      try {
-        platformIdInt = parseInt(platformId as string);
-        if (isNaN(platformIdInt)) throw new Error("Invalid platform ID");
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid platform ID format" });
-      }
-      
-      // 验证平台ID是否属于用户
-      const platform = await storage.getOtaAccount(platformIdInt);
-      if (!platform || platform.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized access to platform" });
-      }
+      console.log("接收到截图上传请求，开始自动平台识别流程");
       
       // 确保上传目录存在
       const screenshotsDir = path.join(process.cwd(), 'uploads', `activity_${Date.now()}`);
@@ -601,11 +585,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 保存所有截图路径
       const allScreenshotPaths = screenshotFiles.map(file => file.path);
       
-      // 保存包含多图路径的JSON数据
+      // 获取用户的所有OTA平台账号
+      const userPlatforms = await storage.getOtaAccountsByUserId(userId as number);
+      
+      if (userPlatforms.length === 0) {
+        return res.status(400).json({ 
+          message: "用户没有关联任何OTA平台账号。请先添加平台账号后再上传截图。" 
+        });
+      }
+      
+      let selectedPlatform;
+      let platformIdInt: number;
+      
+      // 如果提供了特定平台ID，使用该平台
+      if (platformId) {
+        try {
+          platformIdInt = parseInt(platformId as string);
+          if (isNaN(platformIdInt)) throw new Error("Invalid platform ID");
+          
+          // 验证平台ID是否属于用户
+          selectedPlatform = userPlatforms.find(p => p.id === platformIdInt);
+          if (!selectedPlatform) {
+            return res.status(403).json({ message: "平台ID无效或不属于当前用户" });
+          }
+        } catch (err) {
+          return res.status(400).json({ message: "平台ID格式无效" });
+        }
+      } else {
+        // 如果没有提供平台ID，尝试从截图中自动识别平台
+        console.log("未提供平台ID，尝试从截图中自动识别平台...");
+        
+        // 先进行OCR处理以识别平台
+        try {
+          const ocrResult = await processMultipleImages(allScreenshotPaths);
+          
+          if (ocrResult.detectedPlatform && ocrResult.detectedPlatform.code !== 'unknown') {
+            // 找到平台代码对应的用户平台账号
+            const platformCode = ocrResult.detectedPlatform.code;
+            const platformName = ocrResult.detectedPlatform.name;
+            
+            // 在用户的OTA账号中查找匹配的平台
+            const matchedPlatform = userPlatforms.find(platform => {
+              // 检查名称或URL中是否包含平台代码
+              return platform.name.toLowerCase().includes(platformCode) || 
+                     (platform.url && platform.url.toLowerCase().includes(platformCode));
+            });
+            
+            if (matchedPlatform) {
+              selectedPlatform = matchedPlatform;
+              platformIdInt = matchedPlatform.id;
+              console.log(`自动识别到平台：${platformName}，匹配到用户平台账号ID: ${platformIdInt}`);
+            } else {
+              // 如果没有匹配到，使用第一个平台
+              selectedPlatform = userPlatforms[0];
+              platformIdInt = selectedPlatform.id;
+              console.log(`识别到平台${platformName}但未找到匹配账号，使用默认平台ID: ${platformIdInt}`);
+            }
+          } else {
+            // 未能识别平台，使用第一个平台
+            selectedPlatform = userPlatforms[0];
+            platformIdInt = selectedPlatform.id;
+            console.log(`未能识别平台，使用默认平台ID: ${platformIdInt}`);
+          }
+        } catch (error) {
+          console.error("平台自动识别失败:", error);
+          // 识别失败，使用第一个平台
+          selectedPlatform = userPlatforms[0];
+          platformIdInt = selectedPlatform.id;
+        }
+      }
+      
+      // 保存包含多图路径和识别到的平台ID的JSON数据
       const screenshotsDataPath = path.join(screenshotsDir, 'screenshots.json');
       fs.writeFileSync(screenshotsDataPath, JSON.stringify({
         paths: allScreenshotPaths,
         platformId: platformIdInt,
+        platformName: selectedPlatform.name,
         uploadedAt: new Date()
       }));
       
@@ -616,6 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // 从表单数据直接创建活动
           const activityData = {
+            userId: userId as number, // 添加用户ID
             name: req.body.name || `手动活动-${Date.now()}`,
             description: req.body.description || "",
             platformId: platformIdInt,
@@ -683,28 +739,82 @@ async function processOcrAndCreateActivity(platformId: number, screenshotPaths: 
   try {
     console.log(`开始处理平台 ${platformId} 的 ${screenshotPaths.length} 张活动截图...`);
     
+    if (screenshotPaths.length === 0) {
+      console.error("没有有效的截图路径");
+      return;
+    }
+    
+    // 验证所有图片路径是否有效
+    const validScreenshotPaths: string[] = [];
+    for (const path of screenshotPaths) {
+      try {
+        if (fs.existsSync(path)) {
+          validScreenshotPaths.push(path);
+        } else {
+          console.warn(`截图路径无效: ${path}`);
+        }
+      } catch (error) {
+        console.warn(`检查截图路径出错: ${path}`, error);
+      }
+    }
+    
+    if (validScreenshotPaths.length === 0) {
+      console.error("没有有效的截图文件");
+      return;
+    }
+    
+    console.log(`有效截图数量: ${validScreenshotPaths.length}`);
+    
     // 处理所有截图并提取数据
-    const ocrResult = await processMultipleImages(screenshotPaths);
+    const ocrResult = await processMultipleImages(validScreenshotPaths);
     console.log("OCR识别结果:", JSON.stringify(ocrResult.extractedData, null, 2));
     
-    // 从OCR结果中提取活动数据
+    // 生成默认活动名称 - 使用更好的格式
+    const defaultActivityName = `活动${new Date().toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\//g, '')}`;
+    
+    // 从OCR结果中提取活动数据，增加错误处理
     const activityData = {
-      name: ocrResult.extractedData.activityName || `自动提取活动-${Date.now()}`,
-      description: ocrResult.extractedData.description || "OCR自动提取的活动信息",
+      userId, // 确保用户ID位于最前面
+      name: ocrResult.extractedData.activityName || defaultActivityName,
+      description: ocrResult.extractedData.description || "通过OCR从截图中提取的活动信息",
       platformId,
-      startDate: ocrResult.extractedData.startDate ? new Date(ocrResult.extractedData.startDate) : new Date(),
-      endDate: ocrResult.extractedData.endDate ? new Date(ocrResult.extractedData.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      status: ocrResult.extractedData.status || "未决定",
-      participationStatus: "未参与",
-      tag: ocrResult.extractedData.tag || "自动",
+      // 提供合理的默认日期处理
+      startDate: (() => {
+        try {
+          return ocrResult.extractedData.startDate ? new Date(ocrResult.extractedData.startDate) : new Date();
+        } catch (e) {
+          console.warn("开始日期解析错误，使用当前日期", e);
+          return new Date();
+        }
+      })(),
+      // 提供合理的默认结束日期处理
+      endDate: (() => {
+        try {
+          return ocrResult.extractedData.endDate 
+            ? new Date(ocrResult.extractedData.endDate) 
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 默认30天后
+        } catch (e) {
+          console.warn("结束日期解析错误，使用30天后", e);
+          return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        }
+      })(),
+      status: ocrResult.extractedData.status || "未确定",
+      participationStatus: "未参与", // 默认未参与
+      tag: ocrResult.extractedData.tag || "其他",
       discount: ocrResult.extractedData.discount || "未知",
       commissionRate: ocrResult.extractedData.commissionRate || "未知",
       ocrData: JSON.stringify({
+        extractedData: ocrResult.extractedData,
         confidence: ocrResult.confidence,
-        text: ocrResult.text.substring(0, 500), // 保存部分提取文本
-        extractedAt: new Date()
+        text: ocrResult.text.substring(0, 1000), // 保存更多提取文本，但有限制
+        extractedAt: new Date(),
+        processedScreenshots: validScreenshotPaths.length
       }),
-      screenshotPath: screenshotPaths[0] || "", // 保存第一张截图作为主截图
+      screenshotPath: validScreenshotPaths[0] || "", // 保存第一张截图作为主截图
     };
     
     // 验证活动数据

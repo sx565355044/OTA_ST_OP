@@ -124,9 +124,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Use environment variable for port with fallback to 3000
+  // Use environment variable for port with fallback to 5000
   // this serves both the API and the client
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 5000;
 
   // Log port configuration for debugging
   log(`Authentication setup with ALLOW_ANY_PASSWORD=${process.env.ALLOW_ANY_PASSWORD || false}`);

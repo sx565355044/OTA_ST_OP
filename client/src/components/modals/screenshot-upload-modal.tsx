@@ -52,7 +52,8 @@ interface ScreenshotUploadModalProps {
 const activityFormSchema = z.object({
   name: z.string().min(2, "活动名称至少需要2个字符"),
   description: z.string().optional(),
-  platformId: z.string().min(1, "请选择平台"),
+  // platformId不再是必填字段，系统将自动从截图中识别
+  platformId: z.string().optional(),
   startDate: z.date({
     required_error: "请选择开始日期",
   }),
@@ -88,7 +89,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
     defaultValues: {
       name: "",
       description: "",
-      platformId: "",
+      // 移除platformId作为默认字段
       startDate: new Date(),
       endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
       discount: "",
@@ -118,6 +119,18 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       // 转换FileList为数组
       const filesArray = Array.from(files);
       
+      // 检查文件大小限制 (每个文件最大5MB)
+      const oversizedFiles = filesArray.filter(file => file.size > 5 * 1024 * 1024);
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map(f => f.name).join(', ');
+        toast({
+          title: "文件过大",
+          description: `以下文件超过5MB大小限制: ${fileNames}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // 设置表单值
       form.setValue("screenshots", filesArray, { shouldValidate: true });
       
@@ -128,28 +141,43 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       // 添加加载状态指示
       setProcessingStatus('processing');
       
+      // 检查所有文件类型
+      const invalidFiles = filesArray.filter(file => !file.type.match(/^image\/(jpeg|jpg|png|gif)$/i));
+      if (invalidFiles.length > 0) {
+        const fileNames = invalidFiles.map(f => f.name).join(', ');
+        toast({
+          title: "无效的文件格式",
+          description: `以下文件不是有效的图片格式 (JPG/PNG/GIF): ${fileNames}`,
+          variant: "destructive",
+        });
+        setProcessingStatus('idle');
+        return;
+      }
+      
       filesArray.forEach(file => {
-        // 验证文件类型
-        if (!file.type.match(/^image\/(jpeg|jpg|png|gif)$/i)) {
-          toast({
-            title: "错误",
-            description: `文件 "${file.name}" 不是有效的图片格式`,
-            variant: "destructive",
-          });
-          return;
-        }
-        
         const reader = new FileReader();
         
         reader.onloadend = () => {
           if (reader.result) {
+            // 验证图片加载是否成功
             newPreviews.push(reader.result as string);
           }
           
           loadedCount++;
           if (loadedCount === filesArray.length) {
-            setScreenshotPreviews(newPreviews);
+            // 确保预览按原始文件顺序排列 (通过索引匹配)
+            const orderedPreviews = newPreviews
+              .map((preview, idx) => ({ preview, idx }))
+              .sort((a, b) => a.idx - b.idx)
+              .map(item => item.preview);
+              
+            setScreenshotPreviews(orderedPreviews);
             setProcessingStatus('idle');
+            
+            toast({
+              title: "文件已准备好",
+              description: `成功加载 ${newPreviews.length} 张截图`,
+            });
           }
         };
         
@@ -165,7 +193,51 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
           }
         };
         
-        reader.readAsDataURL(file);
+        // 添加超时处理
+        const timeout = setTimeout(() => {
+          if (reader.readyState === 1) { // 如果仍在加载中
+            reader.abort(); // 中止读取
+            toast({
+              title: "读取超时",
+              description: `文件 "${file.name}" 读取超时`,
+              variant: "destructive",
+            });
+            
+            loadedCount++;
+            if (loadedCount === filesArray.length) {
+              setProcessingStatus('idle');
+            }
+          }
+        }, 10000); // 10秒超时
+        
+        reader.onloadend = () => {
+          clearTimeout(timeout);
+          if (reader.result) {
+            newPreviews.push(reader.result as string);
+          }
+          
+          loadedCount++;
+          if (loadedCount === filesArray.length) {
+            setScreenshotPreviews(newPreviews);
+            setProcessingStatus('idle');
+          }
+        };
+        
+        try {
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error(`读取文件 ${file.name} 时出错:`, error);
+          toast({
+            title: "错误",
+            description: `读取文件 "${file.name}" 时出错`,
+            variant: "destructive",
+          });
+          
+          loadedCount++;
+          if (loadedCount === filesArray.length) {
+            setProcessingStatus('idle');
+          }
+        }
       });
     }
   };
@@ -193,11 +265,6 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
   // 添加活动的mutation(使用多文件上传和OCR)
   const addActivityMutation = useMutation({
     mutationFn: async (data: ActivityFormValues) => {
-      // 验证数据
-      if (!data.platformId) {
-        throw new Error('请选择OTA平台');
-      }
-      
       // 验证截图是否存在
       const screenshots = Array.isArray(data.screenshots) ? data.screenshots : [];
       if (screenshots.length === 0) {
@@ -212,7 +279,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
         ...activityData,
         startDate: format(data.startDate, 'yyyy-MM-dd'),
         endDate: format(data.endDate, 'yyyy-MM-dd'),
-        platformId: parseInt(data.platformId),
+        // 不再传递platformId，完全依赖后端自动检测
       };
       
       // 设置处理状态
@@ -220,7 +287,6 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       
       // 创建FormData对象，用于提交文件和数据
       const formData = new FormData();
-      formData.append('platformId', formattedData.platformId.toString());
       
       // 添加所有截图文件
       screenshots.forEach(file => {
@@ -305,42 +371,15 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>添加携程促销活动</DialogTitle>
+          <DialogTitle>添加OTA促销活动</DialogTitle>
           <DialogDescription>
-            通过截图上传方式添加来自携程平台的促销活动。请先登录携程商家平台，然后截取活动页面的截图，并填写以下信息。
+            通过截图添加OTA平台的促销活动。请先登录您的OTA商家平台（如携程、美团、飞猪等），截取活动页面的截图，系统将自动识别平台并提取信息。多张截图提供更准确的识别结果。
           </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* 平台选择 */}
-            <FormField
-              control={form.control}
-              name="platformId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>OTA平台</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择平台" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {accounts.map((account: any) => (
-                        <SelectItem key={account.id} value={account.id.toString()}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* 平台选择已移除，系统将自动识别 */}
             
             {/* 截图上传 */}
             <FormField
@@ -397,6 +436,11 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
                             <span className="material-icons text-gray-400 text-4xl">add_photo_alternate</span>
                             <p className="mt-2 text-sm text-gray-500">点击上传活动截图</p>
                             <p className="text-xs text-gray-400">支持多张JPG, PNG格式，最多10张</p>
+                            <div className="mt-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-md">
+                              <p className="text-xs text-blue-600">
+                                <span className="font-semibold">新功能:</span> 系统将自动识别OTA平台类型(携程、美团、飞猪等)
+                              </p>
+                            </div>
                           </div>
                         )}
                       </label>
@@ -416,7 +460,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">自动OCR识别</FormLabel>
                     <FormDescription>
-                      系统将自动识别截图内容并提取活动数据
+                      系统将自动识别截图内容、提取活动数据并自动检测OTA平台类型
                     </FormDescription>
                   </div>
                   <FormControl>

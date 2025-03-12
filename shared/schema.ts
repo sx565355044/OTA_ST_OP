@@ -56,6 +56,7 @@ export const insertOtaAccountSchema = createInsertSchema(otaAccounts).pick({
 // OTA promotion activities
 export const activities = pgTable("activities", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id), // 添加用户ID字段
   platformId: integer("platform_id").notNull().references(() => otaAccounts.id),
   name: text("name").notNull(),
   description: text("description"),
@@ -77,6 +78,7 @@ export const activities = pgTable("activities", {
 });
 
 export const insertActivitySchema = createInsertSchema(activities).pick({
+  userId: true,   // 添加用户ID
   platformId: true,
   name: true,
   description: true,
