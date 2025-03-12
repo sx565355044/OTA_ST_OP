@@ -40,7 +40,9 @@ interface AccountModalProps {
 
 const accountSchema = z.object({
   account_type: z.string().min(1, '请选择账户类型'),
-  screenshots: z.array(z.instanceof(File)).min(1, '请上传至少一张平台截图').default([])
+  platform_name: z.string().optional(),
+  platform_short_name: z.string().optional(),
+  screenshots: z.array(z.instanceof(File)).optional().default([])
 });
 
 type AccountFormValues = z.infer<typeof accountSchema>;
@@ -71,6 +73,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       const account = accountData as any; // 临时解决类型问题
       form.reset({
         account_type: account.accountType || '商家账户',
+        platform_name: account.name || '',
+        platform_short_name: account.shortName || '',
         screenshots: [],
       });
     }
@@ -105,13 +109,22 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       const formData = new FormData();
       formData.append('accountType', data.account_type);
       
+      // 添加平台名称和缩写（编辑时使用）
+      if (isEditing && data.platform_name) {
+        formData.append('name', data.platform_name);
+      }
+      if (isEditing && data.platform_short_name) {
+        formData.append('shortName', data.platform_short_name);
+      }
+      
       // 如果有多个截图，添加到formData
       if (data.screenshots && data.screenshots.length > 0) {
         // 对每个文件使用相同的字段名但附加索引
         data.screenshots.forEach((file, index) => {
           formData.append(`screenshots`, file);
         });
-      } else {
+      } else if (!isEditing) {
+        // 新建账户时必须上传截图，编辑时可以不上传
         throw new Error('请至少上传一张平台截图');
       }
       
@@ -176,7 +189,39 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* 平台名称字段已移除，平台名称将通过OCR自动检测 */}
+            {/* 平台名称 - 编辑时显示 */}
+            {isEditing && (
+              <FormField
+                control={form.control}
+                name="platform_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>平台名称</FormLabel>
+                    <FormControl>
+                      <Input placeholder="平台名称" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            {/* 平台缩写 - 编辑时显示 */}
+            {isEditing && (
+              <FormField
+                control={form.control}
+                name="platform_short_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>平台缩写</FormLabel>
+                    <FormControl>
+                      <Input placeholder="平台缩写" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
             {/* 账户类型 */}
             <FormField

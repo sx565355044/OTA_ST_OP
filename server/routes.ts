@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const account = await storage.createOtaAccount(validatedData);
               createdAccounts.push(account);
               
-              // 异步处理当前图片的OCR
+              // 异步处理当前图片的OCR和创建活动
               (async () => {
                 try {
                   console.log(`开始处理账户 ${account.id} 的图片...`);
@@ -382,6 +382,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                   
                   console.log(`账户 ${account.id} 的截图处理完成，成功创建向量数据: ${vectorData.id}`);
+                  
+                  // 从OCR结果创建活动
+                  try {
+                    // 处理OCR结果并创建活动
+                    await processOcrAndCreateActivity(account.id, [file.path], userId);
+                    console.log(`已从OCR结果为账户 ${account.id} 创建了活动`);
+                  } catch (activityError) {
+                    console.error(`从OCR结果创建活动失败:`, activityError);
+                  }
                 } catch (error) {
                   console.error(`处理账户 ${account.id} 的截图时出错:`, error);
                   
@@ -454,14 +463,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 准备更新数据
       const updateData: any = {
-        // 不再使用表单数据中的平台名称，保留原有名称
-        name: existingAccount.name,
         accountType: accountData.accountType || accountData.account_type || existingAccount.accountType,
         userId,
       };
       
-      // 如果上传了新的截图，尝试识别平台名称
-      if (screenshotFiles.length > 0) {
+      // 如果表单中提供了平台名称和缩写，使用表单中的值
+      if (accountData.name) {
+        updateData.name = accountData.name;
+      } else if (existingAccount.name) {
+        updateData.name = existingAccount.name;
+      }
+      
+      if (accountData.shortName) {
+        updateData.shortName = accountData.shortName;
+      } else if (existingAccount.shortName) {
+        updateData.shortName = existingAccount.shortName;
+      }
+      
+      // 如果上传了新的截图，尝试识别平台名称（仅当没有手动指定名称时）
+      if (screenshotFiles.length > 0 && !accountData.name) {
         try {
           // 从第一张截图中检测平台信息
           const platformDetectionResult = await processImage(screenshotFiles[0].path);
@@ -470,9 +490,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // 如果检测到平台且置信度足够高，更新平台名称
           if (detectedPlatform && detectedPlatform.confidence >= 10) {
             updateData.name = detectedPlatform.name;
-            updateData.shortName = detectedPlatform.name.length > 2 
-              ? detectedPlatform.name.substring(0, 2) 
-              : detectedPlatform.name;
+            // 只有当没有手动指定缩写时才自动生成
+            if (!accountData.shortName) {
+              updateData.shortName = detectedPlatform.name.length > 2 
+                ? detectedPlatform.name.substring(0, 2) 
+                : detectedPlatform.name;
+            }
             
             console.log(`账户更新: 检测到新的平台名称 ${detectedPlatform.name}，置信度: ${detectedPlatform.confidence.toFixed(2)}%`);
           }
@@ -505,7 +528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.screenshotPath = mainScreenshotPath;
         updateData.status = "处理中";
         
-        // 异步处理OCR
+        // 异步处理OCR并创建活动
         (async () => {
           try {
             console.log(`开始处理账户 ${accountId} 的 ${screenshotFiles.length} 张图片...`);
@@ -523,6 +546,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             console.log(`账户 ${accountId} 的截图处理完成，成功更新向量数据: ${vectorData.id}`);
+            
+            // 从OCR结果创建活动
+            try {
+              // 处理OCR结果并创建活动
+              await processOcrAndCreateActivity(accountId, allScreenshotPaths, userId);
+              console.log(`已从OCR结果为账户 ${accountId} 创建了活动`);
+            } catch (activityError) {
+              console.error(`从OCR结果创建活动失败:`, activityError);
+            }
           } catch (error) {
             console.error(`处理账户 ${accountId} 的截图时出错:`, error);
             
@@ -909,7 +941,25 @@ async function processOcrAndCreateActivity(platformId: number, screenshotPaths: 
           return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         }
       })(),
-      status: ocrResult.extractedData.status || "未确定",
+      // 基于开始和结束日期计算合适的活动状态
+      status: (() => {
+        try {
+          const now = new Date();
+          const startDate = activityData.startDate as Date;
+          const endDate = activityData.endDate as Date;
+          
+          if (startDate > now) {
+            return "待开始";
+          } else if (endDate < now) {
+            return "已结束";
+          } else {
+            return "进行中";
+          }
+        } catch (e) {
+          console.warn("状态计算错误，使用默认状态", e);
+          return ocrResult.extractedData.status || "未确定";
+        }
+      })(),
       participationStatus: "未参与", // 默认未参与
       tag: ocrResult.extractedData.tag || "其他",
       discount: ocrResult.extractedData.discount || "未知",
