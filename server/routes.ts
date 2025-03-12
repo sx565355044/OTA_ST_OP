@@ -514,6 +514,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 平台检测测试API (无需认证，用于测试)
+  app.post("/api/test/detectplatform", upload.single('screenshot'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "没有上传文件" });
+      }
+      
+      console.log("收到文件上传:", req.file.originalname, req.file.path);
+      
+      // 简化版的平台识别测试，避免完整OCR处理
+      // 根据文件名来模拟识别结果
+      const filename = req.file.originalname.toLowerCase();
+      let detectedPlatform = {
+        name: "未知平台",
+        code: "unknown",
+        confidence: 0
+      };
+      
+      if (filename.includes("ctrip") || filename.includes("携程")) {
+        detectedPlatform = { name: "携程", code: "ctrip", confidence: 90 };
+      } else if (filename.includes("meituan") || filename.includes("美团")) {
+        detectedPlatform = { name: "美团", code: "meituan", confidence: 90 };
+      } else if (filename.includes("fliggy") || filename.includes("飞猪")) {
+        detectedPlatform = { name: "飞猪", code: "fliggy", confidence: 90 };
+      } else {
+        // 实际场景下，会对图片内容进行OCR处理和平台识别
+        console.log("文件名中未包含明确的平台关键词，测试版默认为携程平台");
+        detectedPlatform = { name: "携程", code: "ctrip", confidence: 50 };
+      }
+      
+      // 返回平台识别结果
+      res.status(200).json({
+        success: true,
+        filePath: req.file.path,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        detectedPlatform: detectedPlatform,
+        extractedData: {
+          activityName: "测试活动",
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          discount: "8折",
+          commissionRate: "5%"
+        }
+      });
+      
+    } catch (error) {
+      console.error("Error processing platform detection:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "处理平台识别失败", 
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Activities routes
   app.get("/api/activities", checkAuth, async (req, res) => {
     try {
