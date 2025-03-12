@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage"; // Use the default storage
 import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "./utils/encryption";
@@ -8,6 +8,9 @@ import { ctripApiLoginService } from "./services/ctrip-api-login";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import session from 'express-session';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // 扩展express-session声明以包含userId属性
 declare module 'express-session' {
@@ -37,6 +40,37 @@ import {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize HTTP server
   const httpServer = createServer(app);
+  
+  // 确保上传目录存在
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  
+  // 配置multer用于文件上传
+  const multerStorage = multer.diskStorage({
+    destination: function(req, file, cb) {
+      cb(null, uploadsDir);
+    },
+    filename: function(req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+  });
+  
+  const upload = multer({ 
+    storage: multerStorage,
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 限制文件大小为5MB
+    },
+    fileFilter: function(req, file, cb) {
+      // 只接受图片文件
+      if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+        return cb(new Error('只允许上传图片文件!'), false);
+      }
+      cb(null, true);
+    }
+  });
   
   // 设置认证
   setupAuth(app);
@@ -256,32 +290,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/accounts", checkAuth, async (req, res) => {
+  app.post("/api/accounts", checkAuth, upload.single('screenshot'), async (req, res) => {
     try {
       const userId = req.session.userId;
       const accountData = req.body;
+      const screenshotFile = req.file;
       
-      // 处理携程会话数据（如果有）
-      let { ctripSessionData, ...otherData } = accountData;
-      
-      // 验证账户数据
-      const validatedData = insertOtaAccountSchema.parse({
-        ...otherData,
+      // 创建OTA账户的基本数据
+      const accountInfo = {
+        name: accountData.name || accountData.platform_name,
+        url: "screenshot_auth", // 使用占位符替代实际URL，因为我们使用截图验证
+        accountType: accountData.accountType || accountData.account_type,
         userId,
         status: "未连接", // 初始状态
-        sessionData: ctripSessionData || null,
-      });
+        username: "screenshot_auth", // 使用默认值，实际账号密码由截图提供
+        password: "placeholder", // 占位密码，不会实际使用
+        shortName: accountData.name || accountData.platform_name, // 可以添加一个简短名称
+        screenshotPath: screenshotFile ? screenshotFile.path : null, // 保存截图路径
+      };
       
-      // 加密密码后存储
-      const encryptedPassword = await encryptPassword(validatedData.password);
+      // 验证账户数据
+      const validatedData = insertOtaAccountSchema.parse(accountInfo);
       
-      const account = await storage.createOtaAccount({
-        ...validatedData,
-        password: encryptedPassword,
-      });
+      // 创建账户
+      const account = await storage.createOtaAccount(validatedData);
       
-      // 创建携程账户后，设置状态为已连接
-      if (ctripSessionData) {
+      // 如果有截图，设置状态为已连接
+      if (screenshotFile) {
         await storage.updateOtaAccount(account.id, {
           status: "已连接"
         });
@@ -290,15 +325,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updatedAccount = await storage.getOtaAccount(account.id);
         if (updatedAccount) {
           // 不要返回密码信息
-          const { password: _, sessionData: __, ...accountInfo } = updatedAccount;
+          const { password: _, ...accountInfo } = updatedAccount;
           return res.status(201).json(accountInfo);
         }
       }
       
       // 不要返回密码和会话数据
-      const { password: _, sessionData: __, ...accountInfo } = account;
+      const { password: _, ...responseData } = account;
       
-      res.status(201).json(accountInfo);
+      res.status(201).json(responseData);
     } catch (error) {
       console.error("Error creating account:", error);
       
@@ -310,14 +345,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/accounts/:id", checkAuth, async (req, res) => {
+  app.put("/api/accounts/:id", checkAuth, upload.single('screenshot'), async (req, res) => {
     try {
       const accountId = parseInt(req.params.id);
       const userId = req.session.userId;
       const accountData = req.body;
-      
-      // 处理携程会话数据（如果有）
-      let { ctripSessionData, ...otherData } = accountData;
+      const screenshotFile = req.file;
       
       // 检查账户是否存在且属于用户
       const existingAccount = await storage.getOtaAccount(accountId);
@@ -330,28 +363,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      // 处理密码更新
-      let password = existingAccount.password;
-      if (otherData.password && otherData.password.trim() !== '') {
-        password = await encryptPassword(otherData.password);
-      }
-      
-      // 准备会话数据
-      let sessionData = existingAccount.sessionData || null;
-      if (ctripSessionData) {
-        sessionData = ctripSessionData;
-        otherData.status = "已连接"; // 如果有新的会话数据，将状态设置为已连接
-      }
-      
-      const updatedAccount = await storage.updateOtaAccount(accountId, {
-        ...otherData,
-        password,
+      // 准备更新数据
+      const updateData: any = {
+        name: accountData.name || accountData.platform_name || existingAccount.name,
+        accountType: accountData.accountType || accountData.account_type || existingAccount.accountType,
         userId,
-        sessionData
-      });
+      };
+      
+      // 如果上传了新的截图
+      if (screenshotFile) {
+        updateData.screenshotPath = screenshotFile.path;
+        updateData.status = "已连接";
+      }
+      
+      // 执行更新
+      const updatedAccount = await storage.updateOtaAccount(accountId, updateData);
       
       // 不要返回密码和会话数据
-      const { password: _, sessionData: __, ...accountInfo } = updatedAccount;
+      const { password: _, ...accountInfo } = updatedAccount;
       
       res.json(accountInfo);
     } catch (error) {

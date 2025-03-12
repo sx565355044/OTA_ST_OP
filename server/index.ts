@@ -59,6 +59,9 @@ if (usePostgres) {
 // 应用会话中间件
 app.use(session(sessionConfig));
 
+// 设置uploads目录为静态资源目录
+app.use('/uploads', express.static('uploads'));
+
 // 重要: 移除passport的初始化，确保只在setupAuth中初始化一次
 // Passport初始化将在registerRoutes/setupAuth中完成
 
