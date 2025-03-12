@@ -5,11 +5,13 @@ import { Layout } from '@/components/layout/sidebar';
 import { ActivitiesTable } from '@/components/tables/activities-table';
 import { useToast } from '@/hooks/use-toast';
 import { ButtonFix } from '@/components/ui/button-fix';
+import { ScreenshotUploadModal } from '@/components/modals/screenshot-upload-modal';
 
 export default function Activities() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
+  const [isScreenshotModalOpen, setIsScreenshotModalOpen] = useState<boolean>(false);
   
   // 定义活动接口
   interface Activity {
@@ -103,6 +105,14 @@ export default function Activities() {
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <ButtonFix
+                onClick={() => setIsScreenshotModalOpen(true)}
+                variant="default"
+                icon={<span className="material-icons text-sm">add_photo_alternate</span>}
+              >
+                上传截图添加
+              </ButtonFix>
+              
+              <ButtonFix
                 onClick={handleRefresh}
                 variant="outline"
                 icon={<span className="material-icons text-sm">refresh</span>}
@@ -157,6 +167,10 @@ export default function Activities() {
           )}
         </div>
       </div>
+      <ScreenshotUploadModal 
+        isOpen={isScreenshotModalOpen} 
+        onClose={() => setIsScreenshotModalOpen(false)} 
+      />
     </Layout>
   );
 }

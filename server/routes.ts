@@ -498,6 +498,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Refresh activities (scrape from OTA platforms)
+  // 上传活动截图API
+  app.post("/api/activities/screenshot", checkAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { platformId, activityData } = req.body;
+      
+      if (!platformId || !activityData) {
+        return res.status(400).json({ message: "Platform ID and activity data are required" });
+      }
+      
+      // 验证平台ID是否属于用户
+      const platform = await storage.getOtaAccount(platformId);
+      if (!platform || platform.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized access to platform" });
+      }
+      
+      // 处理前端传来的日期字符串
+      let processedData = {
+        ...activityData,
+        platformId,
+        status: activityData.status || "未决定",
+        participationStatus: activityData.participationStatus || "未参与"
+      };
+      
+      // 将字符串日期转换为日期对象
+      if (typeof activityData.startDate === 'string') {
+        processedData.startDate = new Date(activityData.startDate);
+      }
+      
+      if (typeof activityData.endDate === 'string') {
+        processedData.endDate = new Date(activityData.endDate);
+      }
+      
+      // 验证并创建活动数据
+      try {
+        const validatedData = insertActivitySchema.parse(processedData);
+        
+        const activity = await storage.createActivity(validatedData);
+        
+        // 更新平台状态为已连接
+        await storage.updateOtaAccount(platformId, {
+          status: "已连接",
+          lastUpdated: new Date(),
+        });
+        
+        return res.status(201).json({
+          success: true,
+          message: "活动数据已通过截图成功添加",
+          activity
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ message: "活动数据格式无效", errors: error.errors });
+        }
+        throw error;
+      }
+    } catch (error) {
+      console.error("Error adding activity from screenshot:", error);
+      res.status(500).json({ message: "添加活动数据失败" });
+    }
+  });
+
   app.post("/api/activities/refresh", checkAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
