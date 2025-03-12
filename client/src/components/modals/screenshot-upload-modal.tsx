@@ -128,8 +128,10 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
   
   // 删除单个截图
   const removeScreenshot = (index: number) => {
-    const currentScreenshots = form.getValues("screenshots") || [];
-    const newScreenshots = [...currentScreenshots];
+    const currentScreenshots = form.getValues("screenshots");
+    // 确保currentScreenshots是一个数组
+    const screenshotsArray = Array.isArray(currentScreenshots) ? currentScreenshots : [];
+    const newScreenshots = [...screenshotsArray];
     newScreenshots.splice(index, 1);
     
     form.setValue("screenshots", newScreenshots, { shouldValidate: true });

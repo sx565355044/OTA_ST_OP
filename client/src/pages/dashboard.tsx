@@ -19,7 +19,7 @@ export default function Dashboard() {
   interface DashboardStats {
     connectedPlatformsCount: number;
     todayActivitiesCount: number;
-    activeParticipationCount: number;
+    activeActivitiesCount: number;  // 修改字段名，与后端返回保持一致
   }
 
   interface OtaAccount {
@@ -73,7 +73,7 @@ export default function Dashboard() {
   const { data: dashboardStats = { 
     connectedPlatformsCount: 0, 
     todayActivitiesCount: 0, 
-    activeParticipationCount: 0 
+    activeActivitiesCount: 0  // 修改默认值对象中的变量名
   } } = useQuery<DashboardStats>({
     queryKey: ['/api/dashboard/stats'],
     staleTime: 60 * 1000, // 1 minute
@@ -122,8 +122,8 @@ export default function Dashboard() {
               linkUrl="/activities" 
             />
             <StatCard 
-              title="正在参与" 
-              value={dashboardStats?.activeParticipationCount || '0'} 
+              title="活跃活动" 
+              value={dashboardStats?.activeActivitiesCount || '0'} 
               icon="check_circle" 
               iconBgColor="bg-green-100" 
               iconColor="text-green-600" 

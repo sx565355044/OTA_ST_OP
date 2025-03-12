@@ -246,9 +246,13 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                         className="max-h-48 mx-auto object-contain"
                       />
                       <div className="mt-2 text-sm text-blue-600">
-                        {form.getValues("screenshots").length > 1 
-                          ? `已选择 ${form.getValues("screenshots").length} 张图片` 
-                          : "点击更换或添加更多截图"}
+                        {(() => {
+                          const screenshots = form.getValues("screenshots");
+                          const length = Array.isArray(screenshots) ? screenshots.length : 0;
+                          return length > 1 
+                            ? `已选择 ${length} 张图片` 
+                            : "点击更换或添加更多截图";
+                        })()}
                       </div>
                     </div>
                   ) : (

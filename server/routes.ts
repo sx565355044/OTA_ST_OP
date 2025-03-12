@@ -559,67 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/activities/:id/join", checkAuth, async (req, res) => {
-    try {
-      const activityId = parseInt(req.params.id);
-      const userId = req.session.userId;
-      
-      const activity = await storage.getActivity(activityId);
-      
-      if (!activity) {
-        return res.status(404).json({ message: "Activity not found" });
-      }
-      
-      // Check if user has access to this activity (owns the platform account)
-      const account = await storage.getOtaAccount(activity.platformId);
-      if (!account || account.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-      
-      // Update activity participation status
-      const updatedActivity = await storage.updateActivity(activityId, {
-        ...activity,
-        participationStatus: "已参与",
-        status: activity.status === '未决定' ? '待开始' : activity.status,
-      });
-      
-      res.json(updatedActivity);
-    } catch (error) {
-      console.error("Error joining activity:", error);
-      res.status(500).json({ message: "Failed to join activity" });
-    }
-  });
-
-  app.post("/api/activities/:id/leave", checkAuth, async (req, res) => {
-    try {
-      const activityId = parseInt(req.params.id);
-      const userId = req.session.userId;
-      
-      const activity = await storage.getActivity(activityId);
-      
-      if (!activity) {
-        return res.status(404).json({ message: "Activity not found" });
-      }
-      
-      // Check if user has access to this activity (owns the platform account)
-      const account = await storage.getOtaAccount(activity.platformId);
-      if (!account || account.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-      
-      // Update activity participation status
-      const updatedActivity = await storage.updateActivity(activityId, {
-        ...activity,
-        participationStatus: "未参与",
-        status: "未决定",
-      });
-      
-      res.json(updatedActivity);
-    } catch (error) {
-      console.error("Error leaving activity:", error);
-      res.status(500).json({ message: "Failed to leave activity" });
-    }
-  });
+  // 已删除活动参与和离开的相关API路由，因为系统现在专注于策略生成，不再支持活动参与操作
 
   // Refresh activities (scrape from OTA platforms)
   // 上传活动截图API - 支持多图OCR识别
@@ -861,13 +801,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return (startDate <= todayEnd && endDate >= todayStart);
       });
       
-      // Activities currently being participated in
-      const activeParticipation = activities.filter(a => a.participationStatus === "已参与" && a.status !== "已结束");
+      // 不再区分参与状态，我们只计算活跃活动的总数
+      const activeActivities = activities.filter(a => a.status !== "已结束");
       
       res.json({
         connectedPlatformsCount,
         todayActivitiesCount: todayActivities.length,
-        activeParticipationCount: activeParticipation.length,
+        activeActivitiesCount: activeActivities.length, // 使用新名称，表示活跃中的活动数量而不是参与的活动数
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
@@ -966,20 +906,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      // Apply strategy recommendations (update activities)
-      if (strategy.activityIds && strategy.activityIds.length > 0) {
-        for (const activityId of strategy.activityIds) {
-          const activity = await storage.getActivity(activityId);
-          
-          if (activity) {
-            await storage.updateActivity(activityId, {
-              ...activity,
-              participationStatus: "已参与",
-              status: activity.status === '未决定' ? '待开始' : activity.status,
-            });
-          }
-        }
-      }
+      // 我们不再自动更新活动的参与状态，只记录策略的应用
+      console.log(`策略 ${strategyId} 已被应用，但不再自动修改活动参与状态`);
+      // 策略包含的活动ID保留用于参考，但不再修改活动状态
       
       // Mark strategy as applied
       const updatedStrategy = await storage.updateStrategy(strategyId, {

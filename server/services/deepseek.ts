@@ -89,52 +89,52 @@ function prepareParametersData(parameters: StrategyParameter[]): any {
  */
 function constructPrompt(activities: any[], parameters: any, preference: string): string {
   return `
-You are an expert hotel revenue manager tasked with analyzing OTA (Online Travel Agency) platform promotion activities and recommending participation strategies to maximize revenue and occupancy.
+请使用中文回答。你是一位专业的酒店收益管理专家，负责分析OTA（在线旅行平台）促销活动，并为酒店提供最佳参与策略，以最大化收益和入住率。
 
-## Hotel OTA Promotion Activities
+## 酒店OTA促销活动数据
 ${JSON.stringify(activities, null, 2)}
 
-## Strategy Generation Parameters
+## 策略生成参数
 ${JSON.stringify(parameters, null, 2)}
 
-## User Preference
+## 用户偏好
 ${preference}
 
-Based on the above information, generate 3 different participation strategies for these OTA promotion activities. Each strategy should include:
+基于以上信息，请为这些OTA促销活动生成3种不同的参与策略。每个策略必须包含以下内容（所有内容必须使用中文）：
 
-1. A strategy name
-2. A detailed description of the strategy approach
-3. Whether this is the recommended strategy (only one should be recommended)
-4. A list of 3-5 specific advantages of this strategy
-5. A list of 2-3 specific disadvantages or risks
-6. A list of 4-6 specific, actionable steps to implement this strategy
-7. 2-3 important notes or warnings about execution
-8. IDs of activities that should be participated in as part of this strategy
-9. Metrics information including:
-   - Projected growth (value and type: revenue/traffic/etc.)
-   - Complexity level (low/medium/high)
+1. 策略名称
+2. 详细的策略方法描述
+3. 是否为推荐策略（只能有一个被推荐）
+4. 此策略的3-5个具体优势
+5. 此策略的2-3个具体劣势或风险
+6. 4-6个具体、可执行的实施步骤
+7. 2-3条关于执行的重要注意事项或警告
+8. 作为此策略一部分应当参与的活动ID
+9. 指标信息，包括：
+   - 预计增长（数值和类型：收益/流量等）
+   - 复杂度级别（低/中/高）
 
-Return the strategies in a structured JSON format only, without any explanation before or after.
+只返回结构化的JSON格式，不要在JSON前后添加任何解释。所有内容必须使用简体中文，不允许使用英文或其他语言。
 
 {
   "strategies": [
     {
-      "name": "Strategy name",
-      "description": "Strategy description",
+      "name": "策略名称",
+      "description": "策略描述",
       "isRecommended": true/false,
-      "advantages": ["advantage 1", "advantage 2", ...],
-      "disadvantages": ["disadvantage 1", "disadvantage 2", ...],
-      "steps": ["step 1", "step 2", ...],
-      "notes": ["note 1", "note 2", ...],
+      "advantages": ["优势1", "优势2", ...],
+      "disadvantages": ["劣势1", "劣势2", ...],
+      "steps": ["步骤1", "步骤2", ...],
+      "notes": ["注意事项1", "注意事项2", ...],
       "activityIds": [1, 2, ...],
       "metrics": {
         "projectedGrowth": {
           "value": "+X%",
           "percentage": 70,
-          "type": "revenue/traffic/balanced"
+          "type": "收益/流量/平衡"
         },
         "complexity": {
-          "value": "low/medium/high",
+          "value": "低/中/高",
           "percentage": 30
         }
       }
@@ -250,9 +250,9 @@ function parseStrategies(response: string, activities: Activity[]): any[] {
 }
 
 /**
- * Generate fallback strategies for development/testing
- * This is only used when the API call fails in development mode
- * @returns A JSON string with fallback strategies
+ * 生成备用策略用于开发/测试阶段
+ * 仅在开发模式下API调用失败时使用
+ * @returns 包含备用策略的JSON字符串
  */
 function generateFallbackStrategies(): string {
   return `{
@@ -273,32 +273,31 @@ function generateFallbackStrategies(): string {
           "部分平台曝光率可能降低"
         ],
         "steps": [
-          "登录携程商家平台，参与"暑期特惠房"活动，并将折扣调整至15%（而非之前的20%）",
-          "取消参与美团平台的"周末特价"活动，改为参加"会员专享"活动，可提高10%的利润率",
-          "重新连接飞猪平台，参与"双十一预售"活动，但限定房型为"高级大床房"和"商务套房"",
-          "统一调整所有平台佣金结构，将携程平台佣金降至7%，美团维持在10%，飞猪调整为9%"
+          "筛选并分析所有携程平台活动，识别高收益潜力的促销",
+          "调整活动参数，将折扣控制在合理范围以保证利润",
+          "关注飞猪平台的优质活动，特别关注佣金率较低的促销",
+          "避免同时参与多个相似活动，减少竞争和资源浪费"
         ],
         "notes": [
-          "价格调整应在低峰时段进行，避免影响当前订单",
-          "活动切换需提前24小时操作，确保系统同步",
-          "佣金调整可能需与平台客户经理沟通确认"
+          "定期评估各活动的投入产出比，及时调整策略",
+          "关注市场竞争情况，保持价格竞争力"
         ],
         "activityIds": [1, 3],
         "metrics": {
           "projectedGrowth": {
             "value": "+12%",
             "percentage": 80,
-            "type": "revenue"
+            "type": "收益"
           },
           "complexity": {
-            "value": "中等",
+            "value": "中",
             "percentage": 50
           }
         }
       },
       {
         "name": "流量提升策略",
-        "description": "参与多平台高曝光活动，提升预订流量，优先考虑能够带来更多访问量和预订量的促销活动，提高酒店在各OTA平台的曝光率和搜索排名。",
+        "description": "此策略关注OTA平台的曝光和流量提升，优先考虑能够带来更多访问量和预订量的促销活动，提高酒店在各OTA平台的曝光率和搜索排名。",
         "isRecommended": false,
         "advantages": [
           "预计流量增长20%",
@@ -307,27 +306,27 @@ function generateFallbackStrategies(): string {
           "扩大客户获取渠道"
         ],
         "disadvantages": [
-          "佣金成本较高",
+          "可能面临较高佣金成本",
           "利润率可能降低",
-          "需监控转化率"
+          "需密切监控转化率"
         ],
         "steps": [
-          "同时参与所有平台的热门促销活动，接受较高佣金率",
-          "在携程和飞猪平台购买额外的展示位置和搜索优先级",
-          "针对所有活动提供更具吸引力的折扣，如15-20%",
+          "识别并优先参与携程和飞猪平台的高曝光活动",
+          "适当提高折扣力度以增加活动吸引力",
+          "考虑购买额外的展示位置提升曝光",
           "开放更多房型参与各平台活动",
-          "增加预订窗口期，允许提前3个月预订"
+          "增加预订窗口期，允许提前较长时间预订"
         ],
         "notes": [
           "密切监控预订转化率，及时调整低效渠道",
-          "注意不同平台之间的价格一致性，避免价格战"
+          "注意不同平台之间的价格一致性，避免价格混乱"
         ],
         "activityIds": [1, 2, 3],
         "metrics": {
           "projectedGrowth": {
             "value": "+20%",
             "percentage": 90,
-            "type": "traffic"
+            "type": "流量"
           },
           "complexity": {
             "value": "高",
@@ -336,35 +335,35 @@ function generateFallbackStrategies(): string {
         }
       },
       {
-        "name": "平衡策略",
-        "description": "平衡短期收益和长期声誉，稳步提升酒店在OTA平台的表现，既保证当前收益，又不损害长期价格体系和品牌价值。",
+        "name": "平衡发展策略",
+        "description": "此策略平衡短期收益和长期声誉，稳步提升酒店在OTA平台的表现，既保证当前收益，又不损害长期价格体系和品牌价值。",
         "isRecommended": false,
         "advantages": [
-          "收益与声誉的平衡取舍",
+          "兼顾收益与声誉",
           "维持价格体系稳定",
           "降低运营压力",
-          "适合长期发展"
+          "适合长期可持续发展"
         ],
         "disadvantages": [
           "短期收益增长有限",
-          "竞争优势不明显"
+          "在竞争激烈环境中优势不明显"
         ],
         "steps": [
-          "选择性参与携程"暑期特惠房"活动，但限定特定房型",
-          "参与美团"周末特惠"活动，但仅针对周五至周日入住",
-          "暂不参与飞猪"双十一预售"，等待竞争情况后再决定",
-          "保持现有佣金结构不变"
+          "精选性价比高的OTA活动，避免过度参与",
+          "维持合理的折扣水平，避免价格战",
+          "重点关注品质高、口碑好的平台活动",
+          "保持各渠道价格体系的相对稳定"
         ],
         "notes": [
-          "每周评估活动效果，按需微调参与力度",
-          "与平台保持良好沟通，获取更多支持资源"
+          "每周评估活动效果，按需微调策略",
+          "与OTA平台保持良好沟通，争取更多支持资源"
         ],
         "activityIds": [1, 2],
         "metrics": {
           "projectedGrowth": {
             "value": "+8%",
             "percentage": 60,
-            "type": "balanced"
+            "type": "平衡"
           },
           "complexity": {
             "value": "低",
