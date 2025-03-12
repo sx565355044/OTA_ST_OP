@@ -210,7 +210,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           setCtripLoginStep('complete');
           
           // 继续创建账户流程
-          await createAccountWithCtripCookies(accountCreationData!, result.cookies);
+          await createAccountWithCtripSession(accountCreationData!, result.sessionData);
           
           toast({
             title: "验证成功",
@@ -261,7 +261,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         setCtripLoginStep('complete');
         
         // 继续创建账户流程
-        await createAccountWithCtripCookies(accountCreationData!, result.cookies);
+        await createAccountWithCtripSession(accountCreationData!, result.sessionData);
         
         toast({
           title: "验证成功",
@@ -287,8 +287,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     }
   };
   
-  // 使用Ctrip cookies创建账户
-  const createAccountWithCtripCookies = async (accountData: AccountFormValues, cookies?: string) => {
+  // 使用Ctrip会话数据创建账户
+  const createAccountWithCtripSession = async (accountData: AccountFormValues, sessionData?: string) => {
     try {
       // 继续创建账户流程
       const url = isEditing 
@@ -310,7 +310,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
           verificationMethod: accountData.verification_method,
           accountType: accountData.account_type,
           phoneNumber: accountData.phone_number,
-          ctripCookies: cookies // 传递携程cookies
+          ctripSessionData: sessionData // 传递携程会话数据
         }),
         credentials: 'include',
       });

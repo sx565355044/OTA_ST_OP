@@ -4,7 +4,7 @@ import { storage } from "./storage"; // Use the default storage
 import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "./utils/encryption";
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
-import { ctripLoginService } from "./services/ctrip-login";
+import { ctripApiLoginService } from "./services/ctrip-api-login";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import session from 'express-session';
@@ -48,22 +48,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      // 初始化携程登录服务
-      await ctripLoginService.close(); // 确保关闭之前的会话
-      await ctripLoginService.initialize();
-      await ctripLoginService.navigateToLoginPage();
+      // 初始化携程API登录服务
+      ctripApiLoginService.close(); // 确保关闭之前的会话
+      await ctripApiLoginService.initialize();
       
       res.json({
         success: true,
         message: "Ctrip login session initialized",
-        state: ctripLoginService.getLoginState()
+        state: ctripApiLoginService.getLoginState()
       });
     } catch (error) {
       console.error("Error initializing Ctrip login:", error);
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to initialize Ctrip login session",
-        state: ctripLoginService.getLoginState()
+        state: ctripApiLoginService.getLoginState()
       });
     }
   });
@@ -83,38 +82,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      // 输入凭据并提交
-      await ctripLoginService.enterCredentials(username, password);
-      await ctripLoginService.submitCredentialsAndWaitForSmsVerification();
+      // 使用API登录服务进行登录
+      const loginResult = await ctripApiLoginService.login(username, password);
+      const currentState = ctripApiLoginService.getLoginState();
       
-      const currentState = ctripLoginService.getLoginState();
-      const requiresSms = currentState === 'sms_sent';
-      const isLoggedIn = currentState === 'logged_in';
-      
-      if (isLoggedIn) {
-        // 如果已经成功登录（无需短信验证）
-        const cookies = ctripLoginService.getEncryptedCookiesString();
-        
-        res.json({
-          success: true,
-          message: "Successfully logged in without SMS verification",
-          state: currentState,
-          requiresSms: false,
-          cookies
-        });
-      } else if (requiresSms) {
-        // 需要短信验证
-        res.json({
-          success: true,
-          message: "SMS verification required",
-          state: currentState,
-          requiresSms: true
-        });
+      if (loginResult.success) {
+        if (loginResult.requiresSms) {
+          // 需要短信验证
+          // 自动发送短信验证码
+          const sendSmsResult = await ctripApiLoginService.sendSmsCode();
+          
+          res.json({
+            success: true,
+            message: "SMS verification required",
+            state: currentState,
+            requiresSms: true,
+            phoneNumber: loginResult.phoneNumber
+          });
+        } else {
+          // 如果已经成功登录（无需短信验证）
+          const sessionData = ctripApiLoginService.getEncryptedSessionData();
+          
+          res.json({
+            success: true,
+            message: "Successfully logged in without SMS verification",
+            state: currentState,
+            requiresSms: false,
+            sessionData
+          });
+        }
       } else {
-        // 其他状态，可能是登录失败
+        // 登录失败
         res.json({
           success: false,
-          message: "Login failed or unexpected state",
+          message: loginResult.message || "Login failed",
           state: currentState
         });
       }
@@ -123,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to submit credentials",
-        state: ctripLoginService.getLoginState()
+        state: ctripApiLoginService.getLoginState()
       });
     }
   });
@@ -143,27 +144,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      // 输入短信验证码
-      await ctripLoginService.enterSmsVerificationCode(smsCode);
+      // 验证短信验证码
+      const verifyResult = await ctripApiLoginService.verifySmsCode(smsCode);
+      const currentState = ctripApiLoginService.getLoginState();
       
-      // 检查是否已成功登录
-      const isLoggedIn = await ctripLoginService.checkIfLoggedIn();
-      const currentState = ctripLoginService.getLoginState();
-      
-      if (isLoggedIn) {
-        // 获取cookies用于后续操作
-        const cookies = ctripLoginService.getEncryptedCookiesString();
+      if (verifyResult.success) {
+        // 获取会话数据用于后续操作
+        const sessionData = ctripApiLoginService.getEncryptedSessionData();
         
         res.json({
           success: true,
           message: "Successfully verified SMS code and logged in",
           state: currentState,
-          cookies
+          sessionData
         });
       } else {
         res.json({
           success: false,
-          message: "SMS verification failed or timed out",
+          message: verifyResult.message || "SMS verification failed",
           state: currentState
         });
       }
@@ -172,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : "Failed to verify SMS code",
-        state: ctripLoginService.getLoginState()
+        state: ctripApiLoginService.getLoginState()
       });
     }
   });
@@ -183,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      await ctripLoginService.close();
+      ctripApiLoginService.close();
       
       res.json({
         success: true,
@@ -263,14 +261,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const accountData = req.body;
       
-      // Validate account data
+      // 处理携程会话数据（如果有）
+      let { ctripSessionData, ...otherData } = accountData;
+      
+      // 验证账户数据
       const validatedData = insertOtaAccountSchema.parse({
-        ...accountData,
+        ...otherData,
         userId,
-        status: "未连接", // Initial status
+        status: "未连接", // 初始状态
+        sessionData: ctripSessionData || null,
       });
       
-      // Encrypt password before storage
+      // 加密密码后存储
       const encryptedPassword = await encryptPassword(validatedData.password);
       
       const account = await storage.createOtaAccount({
@@ -278,8 +280,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: encryptedPassword,
       });
       
-      // Don't send the password back
-      const { password: _, ...accountInfo } = account;
+      // 创建携程账户后，设置状态为已连接
+      if (ctripSessionData) {
+        await storage.updateOtaAccount(account.id, {
+          status: "已连接"
+        });
+        
+        // 获取更新后的账户信息
+        const updatedAccount = await storage.getOtaAccount(account.id);
+        if (updatedAccount) {
+          // 不要返回密码信息
+          const { password: _, sessionData: __, ...accountInfo } = updatedAccount;
+          return res.status(201).json(accountInfo);
+        }
+      }
+      
+      // 不要返回密码和会话数据
+      const { password: _, sessionData: __, ...accountInfo } = account;
       
       res.status(201).json(accountInfo);
     } catch (error) {
@@ -299,7 +316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId;
       const accountData = req.body;
       
-      // Check if account exists and belongs to user
+      // 处理携程会话数据（如果有）
+      let { ctripSessionData, ...otherData } = accountData;
+      
+      // 检查账户是否存在且属于用户
       const existingAccount = await storage.getOtaAccount(accountId);
       
       if (!existingAccount) {
@@ -310,20 +330,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
-      // Handle password update
+      // 处理密码更新
       let password = existingAccount.password;
-      if (accountData.password && accountData.password.trim() !== '') {
-        password = await encryptPassword(accountData.password);
+      if (otherData.password && otherData.password.trim() !== '') {
+        password = await encryptPassword(otherData.password);
+      }
+      
+      // 准备会话数据
+      let sessionData = existingAccount.sessionData || null;
+      if (ctripSessionData) {
+        sessionData = ctripSessionData;
+        otherData.status = "已连接"; // 如果有新的会话数据，将状态设置为已连接
       }
       
       const updatedAccount = await storage.updateOtaAccount(accountId, {
-        ...accountData,
+        ...otherData,
         password,
         userId,
+        sessionData
       });
       
-      // Don't send the password back
-      const { password: _, ...accountInfo } = updatedAccount;
+      // 不要返回密码和会话数据
+      const { password: _, sessionData: __, ...accountInfo } = updatedAccount;
       
       res.json(accountInfo);
     } catch (error) {
@@ -1146,117 +1174,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 携程商家平台登录相关的API路由
-  app.post("/api/ctrip-auth/init", checkAuth, async (req, res) => {
-    try {
-      await ctripLoginService.navigateToLoginPage();
-      return res.status(200).json({
-        success: true,
-        message: '已成功打开携程登录页面',
-        state: ctripLoginService.getLoginState()
-      });
-    } catch (error) {
-      console.error("[CtripAuth] 初始化登录失败:", error);
-      return res.status(500).json({
-        success: false,
-        message: `初始化登录流程失败: ${error instanceof Error ? error.message : String(error)}`,
-        state: ctripLoginService.getLoginState()
-      });
-    }
-  });
-
-  app.post("/api/ctrip-auth/credentials", checkAuth, async (req, res) => {
-    try {
-      const { username, password } = req.body;
-      
-      if (!username || !password) {
-        return res.status(400).json({
-          success: false,
-          message: '用户名和密码不能为空',
-          state: ctripLoginService.getLoginState()
-        });
-      }
-      
-      await ctripLoginService.enterCredentials(username, password);
-      await ctripLoginService.submitCredentialsAndWaitForSmsVerification();
-      
-      const state = ctripLoginService.getLoginState();
-      if (state === 'sms_sent') {
-        return res.status(200).json({
-          success: true,
-          message: '已成功提交凭据，等待短信验证码',
-          state,
-          requiresSms: true
-        });
-      } else if (state === 'logged_in') {
-        const cookies = ctripLoginService.getEncryptedCookiesString();
-        return res.status(200).json({
-          success: true,
-          message: '已成功登录，无需短信验证',
-          state,
-          requiresSms: false,
-          cookies
-        });
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: '提交凭据后登录状态异常',
-          state
-        });
-      }
-    } catch (error) {
-      console.error("[CtripAuth] 提交凭据失败:", error);
-      return res.status(500).json({
-        success: false,
-        message: `提交凭据失败: ${error instanceof Error ? error.message : String(error)}`,
-        state: ctripLoginService.getLoginState()
-      });
-    }
-  });
-
-  app.post("/api/ctrip-auth/verify-sms", checkAuth, async (req, res) => {
-    try {
-      const { smsCode } = req.body;
-      
-      if (!smsCode || !/^\d{6}$/.test(smsCode)) {
-        return res.status(400).json({
-          success: false,
-          message: '无效的验证码格式，必须是6位数字',
-          state: ctripLoginService.getLoginState()
-        });
-      }
-      
-      await ctripLoginService.enterSmsVerificationCode(smsCode);
-      
-      const state = ctripLoginService.getLoginState();
-      if (state === 'logged_in') {
-        const cookies = ctripLoginService.getEncryptedCookiesString();
-        return res.status(200).json({
-          success: true,
-          message: '短信验证成功，已成功登录',
-          state,
-          cookies
-        });
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: '短信验证后登录状态异常',
-          state
-        });
-      }
-    } catch (error) {
-      console.error("[CtripAuth] 验证短信失败:", error);
-      return res.status(500).json({
-        success: false,
-        message: `验证短信失败: ${error instanceof Error ? error.message : String(error)}`,
-        state: ctripLoginService.getLoginState()
-      });
-    }
-  });
-
+  // 携程API状态查询
   app.get("/api/ctrip-auth/status", checkAuth, (req, res) => {
-    const state = ctripLoginService.getLoginState();
-    const isLoggedIn = state === 'logged_in';
+    const state = ctripApiLoginService.getLoginState();
+    const isLoggedIn = ctripApiLoginService.isLoggedIn();
     
     return res.status(200).json({
       success: true,
@@ -1264,22 +1185,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       isLoggedIn
     });
   });
-
-  app.post("/api/ctrip-auth/close", checkAuth, async (req, res) => {
-    try {
-      await ctripLoginService.close();
-      return res.status(200).json({
-        success: true,
-        message: '浏览器会话已关闭'
-      });
-    } catch (error) {
-      console.error("[CtripAuth] 关闭会话失败:", error);
-      return res.status(500).json({
-        success: false,
-        message: `关闭会话失败: ${error instanceof Error ? error.message : String(error)}`
-      });
-    }
-  });
+  
+  // 路由定义结束
 
   return httpServer;
 }

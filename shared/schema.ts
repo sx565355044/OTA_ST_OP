@@ -30,6 +30,7 @@ export const otaAccounts = pgTable("ota_accounts", {
   password: text("password").notNull(),
   verificationMethod: text("verification_method").default("none"), // 验证方法：none, sms, email, captcha
   phoneNumber: text("phone_number"), // 如果需要手机验证码，存储手机号
+  sessionData: text("session_data"), // 存储加密的会话数据，用于API访问
   accountType: text("account_type").notNull(),
   status: text("status").notNull().default("未连接"),
   lastUpdated: timestamp("last_updated").defaultNow(),
@@ -45,6 +46,7 @@ export const insertOtaAccountSchema = createInsertSchema(otaAccounts).pick({
   password: true,
   verificationMethod: true,
   phoneNumber: true,
+  sessionData: true,
   accountType: true,
   status: true,
 });

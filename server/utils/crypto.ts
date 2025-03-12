@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 // Encryption key and IV
 // In production, these should be stored securely and not in code
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'this-is-a-32-byte-string-for-aes256'; // 32 bytes for AES-256
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '12345678901234567890123456789012'; // 32 bytes for AES-256
 const IV_LENGTH = 16; // For AES, IV length is always 16 bytes
 
 /**
