@@ -105,6 +105,16 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
   const handleScreenshotChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
+      // 检查文件数量是否超过限制
+      if (files.length > 10) {
+        toast({
+          title: "错误",
+          description: "最多只能上传10张截图",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // 转换FileList为数组
       const filesArray = Array.from(files);
       
@@ -113,14 +123,48 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       
       // 为每个文件创建预览
       const newPreviews: string[] = [];
+      let loadedCount = 0;
+      
+      // 添加加载状态指示
+      setProcessingStatus('processing');
+      
       filesArray.forEach(file => {
+        // 验证文件类型
+        if (!file.type.match(/^image\/(jpeg|jpg|png|gif)$/i)) {
+          toast({
+            title: "错误",
+            description: `文件 "${file.name}" 不是有效的图片格式`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
         const reader = new FileReader();
+        
         reader.onloadend = () => {
-          newPreviews.push(reader.result as string);
-          if (newPreviews.length === filesArray.length) {
+          if (reader.result) {
+            newPreviews.push(reader.result as string);
+          }
+          
+          loadedCount++;
+          if (loadedCount === filesArray.length) {
             setScreenshotPreviews(newPreviews);
+            setProcessingStatus('idle');
           }
         };
+        
+        reader.onerror = () => {
+          toast({
+            title: "错误",
+            description: `文件 "${file.name}" 读取失败`,
+            variant: "destructive",
+          });
+          loadedCount++;
+          if (loadedCount === filesArray.length) {
+            setProcessingStatus('idle');
+          }
+        };
+        
         reader.readAsDataURL(file);
       });
     }
@@ -136,15 +180,32 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
     
     form.setValue("screenshots", newScreenshots, { shouldValidate: true });
     
-    const newPreviews = [...screenshotPreviews];
-    newPreviews.splice(index, 1);
-    setScreenshotPreviews(newPreviews);
+    // 确保screenshotPreviews是数组
+    const currentPreviews = Array.isArray(screenshotPreviews) ? screenshotPreviews : [];
+    const newPreviews = [...currentPreviews];
+    
+    if (index >= 0 && index < newPreviews.length) {
+      newPreviews.splice(index, 1);
+      setScreenshotPreviews(newPreviews);
+    }
   };
   
   // 添加活动的mutation(使用多文件上传和OCR)
   const addActivityMutation = useMutation({
     mutationFn: async (data: ActivityFormValues) => {
-      const { screenshots, ...activityData } = data;
+      // 验证数据
+      if (!data.platformId) {
+        throw new Error('请选择OTA平台');
+      }
+      
+      // 验证截图是否存在
+      const screenshots = Array.isArray(data.screenshots) ? data.screenshots : [];
+      if (screenshots.length === 0) {
+        throw new Error('请至少上传一张截图');
+      }
+      
+      // 提取其他数据
+      const { screenshots: screenshotFiles, ...activityData } = data;
       
       // 转换日期格式
       const formattedData = {
@@ -166,12 +227,16 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
         formData.append('screenshots', file);
       });
       
+      // 根据autoOcr值确定是否添加额外数据
+      // 确保autoOcr是布尔值
+      const autoOcr = data.autoOcr === undefined ? true : Boolean(data.autoOcr);
+      
       // 如果不使用OCR，则添加表单数据
-      if (!data.autoOcr) {
-        formData.append('name', formattedData.name);
+      if (!autoOcr) {
+        formData.append('name', formattedData.name || '');
         formData.append('description', formattedData.description || '');
-        formData.append('discount', formattedData.discount);
-        formData.append('commissionRate', formattedData.commissionRate);
+        formData.append('discount', formattedData.discount || '');
+        formData.append('commissionRate', formattedData.commissionRate || '');
         formData.append('startDate', formattedData.startDate);
         formData.append('endDate', formattedData.endDate);
         formData.append('tag', formattedData.tag || '');
@@ -199,7 +264,11 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       setProcessingStatus('success');
       
       // 自动OCR的情况下，服务器是异步处理的，显示处理中的消息
-      if (form.getValues('autoOcr')) {
+      const autoOcr = form.getValues('autoOcr');
+      // 确保autoOcr值为布尔值，默认为true
+      const isAutoOcr = autoOcr === undefined ? true : Boolean(autoOcr);
+      
+      if (isAutoOcr) {
         toast({
           title: "截图已接收",
           description: "系统正在后台处理图片并提取活动数据，这可能需要几分钟时间",
@@ -295,7 +364,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
                         htmlFor="screenshot-upload"
                         className="block text-center cursor-pointer"
                       >
-                        {screenshotPreviews.length > 0 ? (
+                        {Array.isArray(screenshotPreviews) && screenshotPreviews.length > 0 ? (
                           <div className="space-y-4">
                             <div className="grid grid-cols-3 gap-2">
                               {screenshotPreviews.map((preview, index) => (
