@@ -127,6 +127,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // 确保包含cookie以保持会话
         body: JSON.stringify({
           platformId: formattedData.platformId,
           activityData: formattedData,
