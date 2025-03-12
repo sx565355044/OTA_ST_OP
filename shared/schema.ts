@@ -69,6 +69,10 @@ export const activities = pgTable("activities", {
   status: text("status").notNull().default("未决定"),
   tag: text("tag"),
   participationStatus: text("participation_status").default("未参与"),
+  screenshotPath: text("screenshot_path"), // 主截图路径
+  ocrData: text("ocr_data"), // OCR提取数据的JSON字符串
+  vectorId: text("vector_id"), // 向量数据ID
+  ocrConfidence: real("ocr_confidence"), // OCR识别置信度
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -85,6 +89,11 @@ export const insertActivitySchema = createInsertSchema(activities).pick({
   maxBookingWindow: true,
   status: true,
   tag: true,
+  participationStatus: true,
+  screenshotPath: true,
+  ocrData: true,
+  vectorId: true,
+  ocrConfidence: true,
 });
 
 // AI Strategy recommendations

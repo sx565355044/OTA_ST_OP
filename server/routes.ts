@@ -5,6 +5,8 @@ import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
 import { ctripApiLoginService } from "./services/ctrip-api-login";
+import { processMultipleImages } from "./utils/ocr-processor";
+import { vectorStorage } from "./utils/vector-storage";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import session from 'express-session';
@@ -290,23 +292,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/accounts", checkAuth, upload.single('screenshot'), async (req, res) => {
+  app.post("/api/accounts", checkAuth, upload.array('screenshots', 5), async (req, res) => {
     try {
       const userId = req.session.userId;
       const accountData = req.body;
-      const screenshotFile = req.file;
+      const screenshotFiles = req.files as Express.Multer.File[] || [];
+      
+      // 确保上传目录存在
+      const screenshotsDir = path.join(process.cwd(), 'uploads', `account_${Date.now()}`);
+      if (!fs.existsSync(screenshotsDir)) {
+        fs.mkdirSync(screenshotsDir, { recursive: true });
+      }
+      
+      // 提取主截图路径（第一张图）和所有截图路径
+      const mainScreenshotPath = screenshotFiles.length > 0 ? screenshotFiles[0].path : null;
+      const allScreenshotPaths = screenshotFiles.map(file => file.path);
+      
+      // 保存包含多图路径的JSON数据
+      const screenshotsDataPath = path.join(screenshotsDir, 'screenshots.json');
+      fs.writeFileSync(screenshotsDataPath, JSON.stringify({
+        paths: allScreenshotPaths,
+        uploadedAt: new Date()
+      }));
       
       // 创建OTA账户的基本数据
       const accountInfo = {
         name: accountData.name || accountData.platform_name,
-        url: "screenshot_auth", // 使用占位符替代实际URL，因为我们使用截图验证
+        url: "vector_data", // 使用新占位符，表示我们使用向量数据存储
         accountType: accountData.accountType || accountData.account_type,
         userId,
-        status: "未连接", // 初始状态
-        username: "screenshot_auth", // 使用默认值，实际账号密码由截图提供
-        password: "placeholder", // 占位密码，不会实际使用
-        shortName: accountData.name || accountData.platform_name, // 可以添加一个简短名称
-        screenshotPath: screenshotFile ? screenshotFile.path : null, // 保存截图路径
+        status: "处理中", // 初始状态为处理中
+        username: "ocr_data", // 使用新默认值
+        password: "vector_storage", // 占位密码
+        shortName: accountData.name || accountData.platform_name,
+        screenshotPath: mainScreenshotPath, // 只保存主截图路径，其他在screenshots.json中
       };
       
       // 验证账户数据
@@ -315,18 +334,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 创建账户
       const account = await storage.createOtaAccount(validatedData);
       
-      // 如果有截图，设置状态为已连接
-      if (screenshotFile) {
-        await storage.updateOtaAccount(account.id, {
-          status: "已连接"
-        });
+      // 如果有截图，进行OCR处理
+      if (screenshotFiles.length > 0) {
+        // 异步处理，不阻塞响应
+        (async () => {
+          try {
+            console.log(`开始处理账户 ${account.id} 的 ${screenshotFiles.length} 张图片...`);
+            
+            // 处理所有截图并提取数据
+            const ocrResult = await processMultipleImages(allScreenshotPaths);
+            
+            // 将OCR结果转换为向量数据并存储
+            const vectorData = await vectorStorage.storeOcrResult(ocrResult, account.id, allScreenshotPaths);
+            
+            // 更新账户状态为已连接
+            await storage.updateOtaAccount(account.id, {
+              status: "已连接",
+              lastUpdated: new Date()
+            });
+            
+            console.log(`账户 ${account.id} 的截图处理完成，成功创建向量数据: ${vectorData.id}`);
+          } catch (error) {
+            console.error(`处理账户 ${account.id} 的截图时出错:`, error);
+            
+            // 更新账户状态为错误
+            await storage.updateOtaAccount(account.id, {
+              status: "处理失败",
+              lastUpdated: new Date()
+            });
+          }
+        })();
         
         // 获取更新后的账户信息
         const updatedAccount = await storage.getOtaAccount(account.id);
         if (updatedAccount) {
           // 不要返回密码信息
           const { password: _, ...accountInfo } = updatedAccount;
-          return res.status(201).json(accountInfo);
+          return res.status(201).json({
+            ...accountInfo,
+            message: "账户已创建，截图正在后台处理中",
+            screenshotCount: screenshotFiles.length
+          });
         }
       }
       
@@ -345,12 +393,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/accounts/:id", checkAuth, upload.single('screenshot'), async (req, res) => {
+  app.put("/api/accounts/:id", checkAuth, upload.array('screenshots', 5), async (req, res) => {
     try {
       const accountId = parseInt(req.params.id);
       const userId = req.session.userId;
       const accountData = req.body;
-      const screenshotFile = req.file;
+      const screenshotFiles = req.files as Express.Multer.File[] || [];
       
       // 检查账户是否存在且属于用户
       const existingAccount = await storage.getOtaAccount(accountId);
@@ -371,9 +419,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // 如果上传了新的截图
-      if (screenshotFile) {
-        updateData.screenshotPath = screenshotFile.path;
-        updateData.status = "已连接";
+      if (screenshotFiles.length > 0) {
+        // 确保上传目录存在
+        const screenshotsDir = path.join(process.cwd(), 'uploads', `account_${accountId}_${Date.now()}`);
+        if (!fs.existsSync(screenshotsDir)) {
+          fs.mkdirSync(screenshotsDir, { recursive: true });
+        }
+        
+        // 提取主截图路径和所有截图路径
+        const mainScreenshotPath = screenshotFiles[0].path;
+        const allScreenshotPaths = screenshotFiles.map(file => file.path);
+        
+        // 保存包含多图路径的JSON数据
+        const screenshotsDataPath = path.join(screenshotsDir, 'screenshots.json');
+        fs.writeFileSync(screenshotsDataPath, JSON.stringify({
+          paths: allScreenshotPaths,
+          uploadedAt: new Date()
+        }));
+        
+        // 更新主截图路径和状态
+        updateData.screenshotPath = mainScreenshotPath;
+        updateData.status = "处理中";
+        
+        // 异步处理OCR
+        (async () => {
+          try {
+            console.log(`开始处理账户 ${accountId} 的 ${screenshotFiles.length} 张图片...`);
+            
+            // 处理所有截图并提取数据
+            const ocrResult = await processMultipleImages(allScreenshotPaths);
+            
+            // 将OCR结果转换为向量数据并存储
+            const vectorData = await vectorStorage.storeOcrResult(ocrResult, accountId, allScreenshotPaths);
+            
+            // 更新账户状态为已连接
+            await storage.updateOtaAccount(accountId, {
+              status: "已连接",
+              lastUpdated: new Date()
+            });
+            
+            console.log(`账户 ${accountId} 的截图处理完成，成功更新向量数据: ${vectorData.id}`);
+          } catch (error) {
+            console.error(`处理账户 ${accountId} 的截图时出错:`, error);
+            
+            // 更新账户状态为错误
+            await storage.updateOtaAccount(accountId, {
+              status: "处理失败",
+              lastUpdated: new Date()
+            });
+          }
+        })();
       }
       
       // 执行更新
@@ -527,7 +622,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Refresh activities (scrape from OTA platforms)
-  // 上传活动截图API
+  // 上传活动截图API - 支持多图OCR识别
+  app.post("/api/activities/screenshots", checkAuth, upload.array('screenshots', 10), async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { platformId } = req.body;
+      const screenshotFiles = req.files as Express.Multer.File[] || [];
+      
+      if (!platformId) {
+        return res.status(400).json({ message: "Platform ID is required" });
+      }
+      
+      if (screenshotFiles.length === 0) {
+        return res.status(400).json({ message: "至少需要上传一张活动截图" });
+      }
+      
+      // 验证平台ID是否属于用户
+      const platform = await storage.getOtaAccount(platformId);
+      if (!platform || platform.userId !== userId) {
+        return res.status(403).json({ message: "Unauthorized access to platform" });
+      }
+      
+      // 确保上传目录存在
+      const screenshotsDir = path.join(process.cwd(), 'uploads', `activity_${Date.now()}`);
+      if (!fs.existsSync(screenshotsDir)) {
+        fs.mkdirSync(screenshotsDir, { recursive: true });
+      }
+      
+      // 保存所有截图路径
+      const allScreenshotPaths = screenshotFiles.map(file => file.path);
+      
+      // 保存包含多图路径的JSON数据
+      const screenshotsDataPath = path.join(screenshotsDir, 'screenshots.json');
+      fs.writeFileSync(screenshotsDataPath, JSON.stringify({
+        paths: allScreenshotPaths,
+        platformId: parseInt(platformId as string),
+        uploadedAt: new Date()
+      }));
+      
+      // 返回初始状态，并在后台处理OCR
+      res.status(202).json({
+        success: true,
+        message: "活动截图已接收，正在后台处理中",
+        processing: true,
+        screenshotCount: screenshotFiles.length
+      });
+      
+      // 异步处理OCR和活动数据提取
+      (async () => {
+        try {
+          console.log(`开始处理平台 ${platformId} 的 ${screenshotFiles.length} 张活动截图...`);
+          
+          // 处理所有截图并提取数据
+          const ocrResult = await processMultipleImages(allScreenshotPaths);
+          console.log("OCR识别结果:", JSON.stringify(ocrResult.extractedData, null, 2));
+          
+          // 从OCR结果中提取活动数据
+          const activityData = {
+            name: ocrResult.extractedData.activityName || `自动提取活动-${Date.now()}`,
+            description: ocrResult.extractedData.description || "OCR自动提取的活动信息",
+            platformId: parseInt(platformId as string),
+            startDate: ocrResult.extractedData.startDate ? new Date(ocrResult.extractedData.startDate) : new Date(),
+            endDate: ocrResult.extractedData.endDate ? new Date(ocrResult.extractedData.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            status: ocrResult.extractedData.status || "未决定",
+            participationStatus: "未参与",
+            tag: ocrResult.extractedData.tag || "自动",
+            discount: ocrResult.extractedData.discount || "未知",
+            commissionRate: ocrResult.extractedData.commissionRate || "未知",
+            ocrData: JSON.stringify({
+              confidence: ocrResult.confidence,
+              text: ocrResult.text.substring(0, 500), // 保存部分提取文本
+              extractedAt: new Date()
+            }),
+            screenshotPath: allScreenshotPaths[0], // 保存第一张截图作为主截图
+          };
+          
+          // 验证活动数据
+          const validatedData = insertActivitySchema.parse(activityData);
+          
+          // 创建活动
+          const activity = await storage.createActivity(validatedData);
+          
+          // 将OCR结果转换为向量数据并存储
+          const vectorData = await vectorStorage.storeOcrResult(ocrResult, parseInt(platformId as string), allScreenshotPaths);
+          
+          console.log(`平台 ${platformId} 的活动截图处理完成，成功创建活动ID: ${activity.id}`);
+          
+          // 更新平台状态
+          await storage.updateOtaAccount(parseInt(platformId as string), {
+            status: "已连接",
+            lastUpdated: new Date(),
+          });
+        } catch (error) {
+          console.error(`处理平台 ${platformId} 的活动截图时出错:`, error);
+        }
+      })();
+    } catch (error) {
+      console.error("Error processing activity screenshots:", error);
+      res.status(500).json({ message: "处理活动截图失败" });
+    }
+  });
+  
+  // 保留原API接口以兼容性
   app.post("/api/activities/screenshot", checkAuth, async (req, res) => {
     try {
       const userId = req.session.userId;

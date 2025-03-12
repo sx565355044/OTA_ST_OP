@@ -19,6 +19,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,6 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -61,15 +63,18 @@ const activityFormSchema = z.object({
   commissionRate: z.string().min(1, "请输入佣金比例"),
   status: z.string().optional(),
   participationStatus: z.string().optional(),
-  screenshot: z.instanceof(File).optional(),
+  screenshots: z.array(z.instanceof(File)).min(1, "至少需要上传一张截图"),
   tag: z.string().optional(),
+  autoOcr: z.boolean().default(true),
 });
 
 type ActivityFormValues = z.infer<typeof activityFormSchema>;
 
 export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModalProps) {
   const { toast } = useToast();
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
+  const [processingStatus, setProcessingStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   // 获取用户的OTA账户列表
   const { data: accounts = [] } = useQuery<any[]>({
@@ -91,27 +96,53 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       status: "未决定",
       participationStatus: "未参与",
       tag: "新促销",
+      screenshots: [],
+      autoOcr: true,
     },
   });
   
   // 处理截图上传
   const handleScreenshotChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      form.setValue("screenshot", file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setScreenshotPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      // 转换FileList为数组
+      const filesArray = Array.from(files);
+      
+      // 设置表单值
+      form.setValue("screenshots", filesArray, { shouldValidate: true });
+      
+      // 为每个文件创建预览
+      const newPreviews: string[] = [];
+      filesArray.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          newPreviews.push(reader.result as string);
+          if (newPreviews.length === filesArray.length) {
+            setScreenshotPreviews(newPreviews);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
   
-  // 添加活动的mutation
+  // 删除单个截图
+  const removeScreenshot = (index: number) => {
+    const currentScreenshots = form.getValues("screenshots") || [];
+    const newScreenshots = [...currentScreenshots];
+    newScreenshots.splice(index, 1);
+    
+    form.setValue("screenshots", newScreenshots, { shouldValidate: true });
+    
+    const newPreviews = [...screenshotPreviews];
+    newPreviews.splice(index, 1);
+    setScreenshotPreviews(newPreviews);
+  };
+  
+  // 添加活动的mutation(使用多文件上传和OCR)
   const addActivityMutation = useMutation({
     mutationFn: async (data: ActivityFormValues) => {
-      // 提取截图以外的数据
-      const { screenshot, ...activityData } = data;
+      const { screenshots, ...activityData } = data;
       
       // 转换日期格式
       const formattedData = {
@@ -121,17 +152,38 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
         platformId: parseInt(data.platformId),
       };
       
-      // 调用API添加活动
-      const response = await fetch('/api/activities/screenshot', {
+      // 设置处理状态
+      setProcessingStatus('processing');
+      
+      // 创建FormData对象，用于提交文件和数据
+      const formData = new FormData();
+      formData.append('platformId', formattedData.platformId.toString());
+      
+      // 添加所有截图文件
+      screenshots.forEach(file => {
+        formData.append('screenshots', file);
+      });
+      
+      // 如果不使用OCR，则添加表单数据
+      if (!data.autoOcr) {
+        formData.append('name', formattedData.name);
+        formData.append('description', formattedData.description || '');
+        formData.append('discount', formattedData.discount);
+        formData.append('commissionRate', formattedData.commissionRate);
+        formData.append('startDate', formattedData.startDate);
+        formData.append('endDate', formattedData.endDate);
+        formData.append('tag', formattedData.tag || '');
+        formData.append('status', formattedData.status || '未决定');
+        formData.append('autoOcr', 'false');
+      } else {
+        formData.append('autoOcr', 'true');
+      }
+      
+      // 调用新的多文件上传API
+      const response = await fetch('/api/activities/screenshots', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         credentials: 'include', // 确保包含cookie以保持会话
-        body: JSON.stringify({
-          platformId: formattedData.platformId,
-          activityData: formattedData,
-        }),
+        body: formData
       });
       
       if (!response.ok) {
@@ -141,18 +193,30 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
       
       return await response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "成功",
-        description: "活动已通过截图成功添加",
-      });
+    onSuccess: (data) => {
+      setProcessingStatus('success');
+      
+      // 自动OCR的情况下，服务器是异步处理的，显示处理中的消息
+      if (form.getValues('autoOcr')) {
+        toast({
+          title: "截图已接收",
+          description: "系统正在后台处理图片并提取活动数据，这可能需要几分钟时间",
+        });
+      } else {
+        toast({
+          title: "成功",
+          description: "活动已通过截图成功添加",
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       onClose();
       form.reset();
-      setScreenshotPreview(null);
+      setScreenshotPreviews([]);
     },
     onError: (error: Error) => {
+      setProcessingStatus('error');
       toast({
         title: "错误",
         description: error.message,
@@ -208,39 +272,91 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
             />
             
             {/* 截图上传 */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">活动截图</label>
-              <div className="border border-dashed border-gray-300 rounded-md p-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleScreenshotChange}
-                  className="hidden"
-                  id="screenshot-upload"
-                />
-                <label 
-                  htmlFor="screenshot-upload"
-                  className="block text-center cursor-pointer"
-                >
-                  {screenshotPreview ? (
-                    <div className="relative">
-                      <img 
-                        src={screenshotPreview} 
-                        alt="Screenshot preview" 
-                        className="max-h-48 mx-auto object-contain"
+            <FormField
+              control={form.control}
+              name="screenshots"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>活动截图（支持多张截图上传）</FormLabel>
+                  <FormControl>
+                    <div className="border border-dashed border-gray-300 rounded-md p-4">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleScreenshotChange}
+                        className="hidden"
+                        id="screenshot-upload"
+                        ref={fileInputRef}
                       />
-                      <div className="mt-2 text-sm text-blue-600">点击更换截图</div>
+                      <label 
+                        htmlFor="screenshot-upload"
+                        className="block text-center cursor-pointer"
+                      >
+                        {screenshotPreviews.length > 0 ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-3 gap-2">
+                              {screenshotPreviews.map((preview, index) => (
+                                <div key={index} className="relative">
+                                  <img 
+                                    src={preview} 
+                                    alt={`Screenshot ${index + 1}`} 
+                                    className="h-24 w-24 object-cover rounded"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-5 h-5 flex items-center justify-center text-xs"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      removeScreenshot(index);
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              <div className="h-24 w-24 border border-dashed border-gray-300 rounded flex items-center justify-center hover:bg-gray-50">
+                                <span className="text-gray-400 text-2xl">+</span>
+                              </div>
+                            </div>
+                            <div className="mt-2 text-sm text-blue-600">点击添加更多截图</div>
+                          </div>
+                        ) : (
+                          <div className="py-8">
+                            <span className="material-icons text-gray-400 text-4xl">add_photo_alternate</span>
+                            <p className="mt-2 text-sm text-gray-500">点击上传活动截图</p>
+                            <p className="text-xs text-gray-400">支持多张JPG, PNG格式，最多10张</p>
+                          </div>
+                        )}
+                      </label>
                     </div>
-                  ) : (
-                    <div className="py-8">
-                      <span className="material-icons text-gray-400 text-4xl">add_photo_alternate</span>
-                      <p className="mt-2 text-sm text-gray-500">点击上传活动截图</p>
-                      <p className="text-xs text-gray-400">支持JPG, PNG格式</p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* OCR开关 */}
+            <FormField
+              control={form.control}
+              name="autoOcr"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">自动OCR识别</FormLabel>
+                    <FormDescription>
+                      系统将自动识别截图内容并提取活动数据
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
             
             {/* 活动名称 */}
             <FormField
@@ -427,8 +543,11 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
               <Button 
                 type="submit"
                 disabled={addActivityMutation.isPending}
+                className={processingStatus === 'processing' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
               >
-                {addActivityMutation.isPending ? '添加中...' : '添加活动'}
+                {processingStatus === 'processing' ? '处理中...' : 
+                 processingStatus === 'success' ? '添加成功' : 
+                 addActivityMutation.isPending ? '提交中...' : '上传截图'}
               </Button>
             </DialogFooter>
           </form>

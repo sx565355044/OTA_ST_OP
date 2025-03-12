@@ -41,7 +41,7 @@ interface AccountModalProps {
 const accountSchema = z.object({
   platform_name: z.string().min(1, '请输入平台名称'),
   account_type: z.string().min(1, '请选择账户类型'),
-  screenshot: z.instanceof(File).optional()
+  screenshots: z.array(z.instanceof(File)).optional().default([])
 });
 
 type AccountFormValues = z.infer<typeof accountSchema>;
@@ -79,14 +79,17 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   
   // 处理截图上传
   const handleScreenshotChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      form.setValue("screenshot", file);
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files);
+      form.setValue("screenshots", fileArray);
+      
+      // 显示第一个文件的预览（可以扩展为多图预览）
       const reader = new FileReader();
       reader.onloadend = () => {
         setScreenshotPreview(reader.result as string);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(fileArray[0]);
     }
   };
   
@@ -104,9 +107,12 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       formData.append('name', data.platform_name);
       formData.append('accountType', data.account_type);
       
-      // 如果有截图，添加到formData
-      if (data.screenshot) {
-        formData.append('screenshot', data.screenshot);
+      // 如果有多个截图，添加到formData
+      if (data.screenshots && data.screenshots.length > 0) {
+        // 对每个文件使用相同的字段名但附加索引
+        data.screenshots.forEach((file, index) => {
+          formData.append(`screenshots`, file);
+        });
       }
       
       try {
@@ -217,7 +223,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
             {/* 截图上传 */}
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                平台截图
+                OTA平台活动截图（支持多图）
               </label>
               <div className="border border-dashed border-input rounded-md p-4">
                 <input
@@ -226,6 +232,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                   onChange={handleScreenshotChange}
                   className="hidden"
                   id="screenshot-upload"
+                  multiple // 开启多文件选择
                 />
                 <label 
                   htmlFor="screenshot-upload"
@@ -238,7 +245,11 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                         alt="Screenshot preview" 
                         className="max-h-48 mx-auto object-contain"
                       />
-                      <div className="mt-2 text-sm text-blue-600">点击更换截图</div>
+                      <div className="mt-2 text-sm text-blue-600">
+                        {form.getValues("screenshots").length > 1 
+                          ? `已选择 ${form.getValues("screenshots").length} 张图片` 
+                          : "点击更换或添加更多截图"}
+                      </div>
                     </div>
                   ) : (
                     <div className="py-8">
@@ -246,14 +257,14 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
                         {/* 上传图标 */}
                         ➕
                       </span>
-                      <p className="mt-2 text-sm text-gray-500">点击上传平台截图</p>
-                      <p className="text-xs text-gray-400">支持JPG、PNG格式</p>
+                      <p className="mt-2 text-sm text-gray-500">点击上传OTA平台活动截图</p>
+                      <p className="text-xs text-gray-400">支持多图上传，JPG、PNG格式</p>
                     </div>
                   )}
                 </label>
               </div>
               <p className="text-sm text-muted-foreground">
-                上传平台截图后，系统将自动处理相关信息，无需手动输入账号和密码
+                上传平台活动截图后，系统将通过OCR自动提取活动信息，以向量形式存储并用于智能分析
               </p>
             </div>
             
