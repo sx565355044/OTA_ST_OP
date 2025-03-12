@@ -1,9 +1,11 @@
-import { Pool } from 'pg';
+import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from '../shared/schema';
 import { postgresStorage } from './storage-pg';
 import dotenv from 'dotenv';
+
+const { Pool } = pg;
 
 dotenv.config();
 
@@ -46,12 +48,10 @@ async function runMigrations() {
   }
 }
 
-// 如果直接运行此脚本，则执行迁移
-if (require.main === module) {
-  runMigrations().catch(err => {
-    console.error('迁移失败:', err);
-    process.exit(1);
-  });
-}
+// 在ESM模块中直接运行迁移
+runMigrations().catch(err => {
+  console.error('迁移失败:', err);
+  process.exit(1);
+});
 
 export { runMigrations };

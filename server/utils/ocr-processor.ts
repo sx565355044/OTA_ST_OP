@@ -500,13 +500,7 @@ export async function processMultipleImages(imagePaths: string[]): Promise<OcrRe
   });
   
   // 找出得票最多且平均置信度最高的平台
-  // 明确类型定义
-  interface DetectedPlatform {
-    name: string;
-    code: string;
-    confidence: number;
-  }
-  
+  // 使用我们已经在接口中定义的DetectedPlatform类型
   let bestPlatform: DetectedPlatform | null = null;
   let maxVotes = 0;
   let maxConfidence = 0;
@@ -530,7 +524,11 @@ export async function processMultipleImages(imagePaths: string[]): Promise<OcrRe
     // 确保 extractedData 被初始化为对象并添加平台信息
     mergedResult.extractedData = mergedResult.extractedData || {};
     // 确保bestPlatform不为空并赋值
-    if (bestPlatform && 'name' in bestPlatform && typeof bestPlatform.name === 'string') {
+    if (bestPlatform && 
+        typeof bestPlatform === 'object' && 
+        bestPlatform !== null &&
+        'name' in bestPlatform && 
+        typeof bestPlatform.name === 'string') {
       // 使用类型安全的直接赋值
       mergedResult.extractedData.platform = bestPlatform.name;
     }

@@ -297,7 +297,8 @@ export class PostgresStorage implements IStorage {
         password: 'ctripP@ssw0rd',
         userId: 1,
         accountType: 'business',
-        status: 'active'
+        status: 'active',
+        verificationMethod: 'sms'
       });
 
       await this.createOtaAccount({
@@ -308,7 +309,8 @@ export class PostgresStorage implements IStorage {
         password: 'meituanP@ss123',
         userId: 1,
         accountType: 'standard',
-        status: 'active'
+        status: 'active',
+        verificationMethod: 'none'
       });
 
       await this.createOtaAccount({
@@ -319,7 +321,8 @@ export class PostgresStorage implements IStorage {
         password: 'fliggyP@ss456',
         userId: 1,
         accountType: 'premium',
-        status: 'active'
+        status: 'active',
+        verificationMethod: 'email'
       });
     }
 
@@ -338,6 +341,7 @@ export class PostgresStorage implements IStorage {
       await this.createActivity({
         name: '暑期特惠',
         description: '暑期家庭出游特别折扣',
+        userId: 1,
         platformId: 1,
         startDate: now,
         endDate: nextMonth,
@@ -353,6 +357,7 @@ export class PostgresStorage implements IStorage {
       await this.createActivity({
         name: '周末闪购',
         description: '限时48小时特惠房价',
+        userId: 1,
         platformId: 2,
         startDate: tomorrow,
         endDate: nextWeek,
@@ -368,6 +373,7 @@ export class PostgresStorage implements IStorage {
       await this.createActivity({
         name: '预付立减',
         description: '提前预付享受额外折扣',
+        userId: 1,
         platformId: 3,
         startDate: now,
         endDate: nextMonth,

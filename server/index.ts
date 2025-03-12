@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
 import { postgresStorage } from "./storage-pg";
+import { mysqlStorage } from "./storage-mysql";
 import MemoryStore from "memorystore";
 import dotenv from "dotenv";
 
@@ -23,8 +24,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// 根据环境变量决定使用内存存储还是 PostgreSQL 存储
+// 根据环境变量决定使用哪种数据库存储
+// USE_POSTGRES=true: 使用PostgreSQL
+// USE_MYSQL=true: 使用MySQL
+// 两者都不设置: 使用内存存储
 const usePostgres = process.env.USE_POSTGRES === "true";
+const useMySQL = process.env.USE_MYSQL === "true";
 
 // 设置 Session 配置
 const sessionSecret = process.env.SESSION_SECRET || "otainsight_secret_key";
@@ -43,7 +48,15 @@ const sessionConfig: session.SessionOptions = {
 
 // 添加会话存储
 const MemoryStoreSession = MemoryStore(session);
-if (usePostgres) {
+if (useMySQL) {
+  if (!process.env.DATABASE_URL) {
+    console.error("DATABASE_URL is required when USE_MYSQL=true");
+    throw new Error("DATABASE_URL is required when USE_MYSQL=true");
+  }
+  sessionConfig.store = mysqlStorage.sessionStore;
+  console.log("Using MySQL session store");
+  console.log("Database connection string available:", !!process.env.DATABASE_URL);
+} else if (usePostgres) {
   if (!process.env.DATABASE_URL) {
     console.error("DATABASE_URL is required when USE_POSTGRES=true");
     throw new Error("DATABASE_URL is required when USE_POSTGRES=true");
@@ -130,7 +143,7 @@ app.use((req, res, next) => {
 
   // Log port configuration for debugging
   log(`Authentication setup with ALLOW_ANY_PASSWORD=${process.env.ALLOW_ANY_PASSWORD || false}`);
-  log(`Using PostgreSQL: ${usePostgres}`);
+  log(`Database type: ${useMySQL ? 'MySQL' : (usePostgres ? 'PostgreSQL' : 'Memory')}`);
   log(`Server configured to listen on port ${port}`);
   server.listen({
     port,

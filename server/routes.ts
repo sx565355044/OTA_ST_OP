@@ -622,8 +622,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/activities/screenshots", checkAuth, upload.array('screenshots', 10), async (req, res) => {
     try {
       const userId = req.session.userId;
-      const { autoOcr = 'true', platformId } = req.body;
-      // platformId可选，优先使用自动检测
+      const { autoOcr = 'true' } = req.body;
+      // 移除platformId参数，始终使用自动检测
       const screenshotFiles = req.files as Express.Multer.File[] || [];
       
       if (screenshotFiles.length === 0) {
@@ -653,23 +653,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let selectedPlatform;
       let platformIdInt: number;
       
-      // 如果提供了特定平台ID，使用该平台
-      if (platformId) {
-        try {
-          platformIdInt = parseInt(platformId as string);
-          if (isNaN(platformIdInt)) throw new Error("Invalid platform ID");
-          
-          // 验证平台ID是否属于用户
-          selectedPlatform = userPlatforms.find(p => p.id === platformIdInt);
-          if (!selectedPlatform) {
-            return res.status(403).json({ message: "平台ID无效或不属于当前用户" });
-          }
-        } catch (err) {
-          return res.status(400).json({ message: "平台ID格式无效" });
-        }
-      } else {
-        // 如果没有提供平台ID，尝试从截图中自动识别平台
-        console.log("未提供平台ID，尝试从截图中自动识别平台...");
+      // 始终使用自动检测平台功能
+      {
+        // 从截图中自动识别平台
+        console.log("开始自动识别平台...");
         
         // 先进行OCR处理以识别平台
         try {

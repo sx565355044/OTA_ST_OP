@@ -50,7 +50,8 @@ interface ScreenshotUploadModalProps {
 
 // 定义表单验证Schema
 const activityFormSchema = z.object({
-  name: z.string().min(2, "活动名称至少需要2个字符"),
+  // name字段已设为可选，系统将通过OCR自动提取活动名称
+  name: z.string().optional(),
   description: z.string().optional(),
   // platformId已完全移除，系统将完全依赖自动检测
   startDate: z.date({
@@ -88,7 +89,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
   const form = useForm<ActivityFormValues>({
     resolver: zodResolver(activityFormSchema),
     defaultValues: {
-      name: "",
+      // name字段已设为可选，由系统自动提取
       description: "",
       // platformId已完全从表单中移除
       startDate: new Date(),
@@ -155,47 +156,9 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
         return;
       }
       
-      // 测试功能：检查文件名以进行平台自动检测预览
-      // 注意：这仅用于展示，实际检测会在后端OCR处理中进行
-      const fileNames = filesArray.map(file => file.name.toLowerCase());
-      
-      // 检查文件名中的关键字来模拟平台检测
-      const hasCtrip = fileNames.some(name => name.includes('ctrip') || name.includes('携程'));
-      const hasMeituan = fileNames.some(name => name.includes('meituan') || name.includes('美团'));
-      const hasFliggy = fileNames.some(name => name.includes('fliggy') || name.includes('飞猪'));
-      
-      // 如果检测到平台关键字，显示平台检测预览
-      if (hasCtrip) {
-        setDetectedPlatform({
-          name: '携程旅行',
-          code: 'ctrip',
-          confidence: 0.95
-        });
-      } else if (hasMeituan) {
-        setDetectedPlatform({
-          name: '美团旅行',
-          code: 'meituan',
-          confidence: 0.92
-        });
-      } else if (hasFliggy) {
-        setDetectedPlatform({
-          name: '飞猪旅行',
-          code: 'fliggy',
-          confidence: 0.93
-        });
-      } else if (filesArray.some(file => file.size > 100000)) {
-        // 对于没有明显平台关键字的大文件，以50%的概率显示自动检测
-        // 仅用于演示目的
-        if (Math.random() > 0.5) {
-          const platforms = [
-            { name: '携程旅行', code: 'ctrip', confidence: 0.86 },
-            { name: '美团旅行', code: 'meituan', confidence: 0.81 },
-            { name: '飞猪旅行', code: 'fliggy', confidence: 0.83 }
-          ];
-          const randomPlatform = platforms[Math.floor(Math.random() * platforms.length)];
-          setDetectedPlatform(randomPlatform);
-        }
-      }
+      // 移除前端模拟平台检测代码，完全依赖后端OCR进行平台自动检测
+      // 清除之前可能存在的平台检测结果，等待后端返回真实结果
+      setDetectedPlatform(null);
       
       filesArray.forEach(file => {
         const reader = new FileReader();
@@ -580,20 +543,7 @@ export function ScreenshotUploadModal({ isOpen, onClose }: ScreenshotUploadModal
               </div>
             )}
             
-            {/* 活动名称 */}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>活动名称</FormLabel>
-                  <FormControl>
-                    <Input placeholder="输入活动名称" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* 活动名称字段已移除，系统将自动从OCR结果提取 */}
             
             {/* 活动描述 */}
             <FormField
