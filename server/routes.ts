@@ -7,6 +7,7 @@ import { generateStrategies } from "./services/deepseek";
 import { ctripApiLoginService } from "./services/ctrip-api-login";
 import { processMultipleImages, processImage } from "./utils/ocr-processor";
 import { vectorStorage } from "./utils/vector-storage";
+import { deepseekOcrService, DeepSeekOcrService } from "./services/deepseek-ocr";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import session from 'express-session';
@@ -332,11 +333,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
           // 先输出匹配度信息用于调试
-          const result = await processImage(file.path);
-          platformDetectionResults.push(result);
+          console.log(`处理第 ${i+1} 张图片...`);
+          
+          // 使用try-catch包装处理过程，确保一张图片的错误不会影响整个流程
+          let result;
+          try {
+            result = await processImage(file.path);
+            console.log(`第 ${i+1} 张图片处理成功，提取文本长度: ${result.text.length}`);
+            platformDetectionResults.push(result);
+          } catch (ocrError) {
+            console.error(`处理第 ${i+1} 张图片时出错:`, ocrError);
+            // 跳过这张图片的处理，继续下一张
+            continue;
+          }
           
           // 从OCR结果中提取平台信息
           const detectedPlatform = result?.detectedPlatform;
+          console.log(`第 ${i+1} 张图片的平台检测结果:`, detectedPlatform);
           
           // 只有当置信度达到阈值且平台尚未创建时才创建新账户
           if (detectedPlatform && detectedPlatform.confidence >= 10 && !platformSet.has(detectedPlatform.code)) {
@@ -756,12 +769,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 先进行OCR处理以识别平台
         try {
-          const ocrResult = await processMultipleImages(allScreenshotPaths);
+          console.log("开始处理多张截图以识别平台...");
+          let ocrResult;
+          
+          try {
+            ocrResult = await processMultipleImages(allScreenshotPaths);
+            console.log("多图OCR处理成功，识别文本长度:", ocrResult.text.length);
+          } catch (ocrError) {
+            console.error("多图OCR处理失败:", ocrError);
+            return res.status(400).json({ 
+              message: "截图OCR处理失败，无法识别文本内容。请尝试上传更清晰的图片，或者手动选择平台。",
+              error: ocrError instanceof Error ? ocrError.message : "Unknown OCR error"
+            });
+          }
           
           if (ocrResult.detectedPlatform && ocrResult.detectedPlatform.code !== 'unknown') {
             // 找到平台代码对应的用户平台账号
             const platformCode = ocrResult.detectedPlatform.code;
             const platformName = ocrResult.detectedPlatform.name;
+            console.log(`成功识别平台: ${platformName}(${platformCode})，置信度: ${ocrResult.detectedPlatform.confidence.toFixed(2)}%`);
             
             // 在用户的OTA账号中查找匹配的平台
             const matchedPlatform = userPlatforms.find(platform => {
@@ -904,9 +930,32 @@ async function processOcrAndCreateActivity(platformId: number, screenshotPaths: 
     
     console.log(`有效截图数量: ${validScreenshotPaths.length}`);
     
-    // 处理所有截图并提取数据
-    const ocrResult = await processMultipleImages(validScreenshotPaths);
-    console.log("OCR识别结果:", JSON.stringify(ocrResult.extractedData, null, 2));
+    // 处理所有截图并提取数据，增加错误处理
+    let ocrResult;
+    try {
+      console.log("开始进行多图OCR处理...");
+      ocrResult = await processMultipleImages(validScreenshotPaths);
+      console.log("OCR识别成功，文本长度:", ocrResult.text.length);
+      console.log("OCR识别结果:", JSON.stringify(ocrResult.extractedData, null, 2));
+    } catch (ocrError) {
+      console.error("OCR处理失败，使用备用数据:", ocrError);
+      // 创建一个基本的OCR结果，避免其他代码失败
+      ocrResult = {
+        text: "OCR识别失败，无法提取文本内容",
+        confidence: 0.1,
+        extractedData: {
+          activityName: null,
+          description: "OCR识别失败，无法提取活动详情",
+          startDate: null,
+          endDate: null,
+          discount: null,
+          commissionRate: null,
+          status: "未确定",
+          tag: "其他",
+          platform: null
+        }
+      };
+    }
     
     // 生成默认活动名称 - 使用更好的格式
     const defaultActivityName = `活动${new Date().toLocaleDateString('zh-CN', {
@@ -1311,14 +1360,64 @@ async function processOcrAndCreateActivity(platformId: number, screenshotPaths: 
         });
       }
       
+      // 获取DeepSeek OCR服务的连接状态
+      const connectionStatus = deepseekOcrService.getConnectionStatus();
+      
       res.json({
         configured: true,
         lastUpdated: apiKey.lastUpdated,
         model: apiKey.model,
+        connection: connectionStatus
       });
     } catch (error) {
       console.error("Error fetching API key status:", error);
       res.status(500).json({ message: "Failed to fetch API key status" });
+    }
+  });
+  
+  // 测试DeepSeek API连接
+  app.post("/api/settings/api-key/test", checkAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const { apiKey } = req.body;
+      
+      if (!apiKey) {
+        return res.status(400).json({ 
+          success: false,
+          message: "需要提供API密钥才能测试连接"
+        });
+      }
+      
+      // 临时设置API密钥到环境变量（只在当前请求中有效）
+      process.env.DEEPSEEK_API_KEY = apiKey;
+      
+      // 创建一个临时的DeepSeek OCR服务实例用于测试
+      const testService = new DeepSeekOcrService();
+      
+      // 测试连接
+      console.log("测试用户提供的DeepSeek API密钥...");
+      const isValid = await testService.testConnection();
+      
+      if (isValid) {
+        console.log("DeepSeek API连接测试成功");
+        return res.json({
+          success: true,
+          message: "DeepSeek API连接测试成功，密钥有效"
+        });
+      } else {
+        console.log("DeepSeek API连接测试失败");
+        return res.status(400).json({
+          success: false,
+          message: "DeepSeek API连接测试失败，密钥无效或API服务不可用"
+        });
+      }
+      
+    } catch (error) {
+      console.error("Error testing API key:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "API密钥测试失败，请检查网络连接或联系管理员" 
+      });
     }
   });
 

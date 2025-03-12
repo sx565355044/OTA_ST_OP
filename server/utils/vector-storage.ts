@@ -99,33 +99,73 @@ export class VectorStorage {
    * @returns 存储的向量数据
    */
   async storeOcrResult(ocrResult: OcrResult, platformId: number, imagePaths: string[]): Promise<VectorData> {
-    // 组合所有文本
-    const combinedText = [
-      ocrResult.extractedData.activityName || '',
-      ocrResult.extractedData.description || '',
-      ocrResult.text
-    ].join(' ');
-    
-    // 创建向量
-    const vector = await this.textToEmbedding(combinedText);
-    
-    // 创建向量数据对象
-    const vectorData: VectorData = {
-      id: `vec_${Date.now()}_${platformId}_${Math.floor(Math.random() * 10000)}`,
-      text: combinedText,
-      vector,
-      metadata: {
-        platformId,
-        imagePaths,
-        extractedData: ocrResult.extractedData,
-        createdAt: new Date()
+    try {
+      console.log(`开始处理OCR结果并转换为向量数据，平台ID: ${platformId}`);
+      
+      // 组合所有文本，增加错误处理
+      const combinedText = [
+        ocrResult?.extractedData?.activityName || '',
+        ocrResult?.extractedData?.description || '',
+        ocrResult?.text || '无文本内容'
+      ].filter(text => text).join(' ');
+      
+      if (combinedText.trim().length < 10) {
+        console.warn(`警告: OCR提取的文本内容过少 (${combinedText.length} 字符)`);
       }
-    };
-    
-    // 保存向量数据
-    this.saveVectorData(vectorData);
-    
-    return vectorData;
+      
+      // 创建向量，使用try-catch处理可能的错误
+      let vector: number[] = [];
+      try {
+        console.log("开始创建文本嵌入向量...");
+        vector = await this.textToEmbedding(combinedText);
+        console.log(`向量创建成功，维度: ${vector.length}`);
+      } catch (embeddingError) {
+        console.error("创建文本嵌入向量失败，使用简单哈希替代:", embeddingError);
+        // 使用简单哈希作为应急方案
+        vector = this.simpleHashEmbedding(combinedText);
+      }
+      
+      // 创建唯一ID，确保包含足够的随机性
+      const uniqueId = `vec_${Date.now()}_${platformId}_${Math.floor(Math.random() * 100000)}`;
+      
+      // 创建向量数据对象
+      const vectorData: VectorData = {
+        id: uniqueId,
+        text: combinedText,
+        vector,
+        metadata: {
+          platformId,
+          imagePaths: imagePaths || [],
+          extractedData: ocrResult?.extractedData || {},
+          createdAt: new Date()
+        }
+      };
+      
+      // 安全保存向量数据
+      try {
+        this.saveVectorData(vectorData);
+        console.log(`向量数据已保存，ID: ${uniqueId}`);
+      } catch (saveError) {
+        console.error("保存向量数据失败:", saveError);
+        // 即使保存失败，仍然返回向量数据以便继续处理
+      }
+      
+      return vectorData;
+    } catch (error) {
+      console.error("存储OCR结果为向量数据时出错:", error);
+      // 创建一个基本的向量数据对象作为应急方案
+      return {
+        id: `fallback_${Date.now()}_${platformId}`,
+        text: "向量处理失败",
+        vector: new Array(384).fill(0), // 创建一个全零向量
+        metadata: {
+          platformId,
+          imagePaths: imagePaths || [],
+          extractedData: ocrResult?.extractedData || {},
+          createdAt: new Date()
+        }
+      };
+    }
   }
   
   /**

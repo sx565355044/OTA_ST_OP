@@ -26,6 +26,21 @@ export interface ExtractedData {
   status?: string;
   tag?: string;
   platform?: string;  // 识别出的平台名称
+  errorMessage?: string; // 错误信息
+  [key: string]: any; // 允许额外字段
+}
+
+// OCR文本提取结果
+export interface TextExtractionResult {
+  text: string;
+  confidence: number;
+  source?: string; // OCR引擎来源: deepseek 或 tesseract
+  bbox?: {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+  };
 }
 
 // OCR结果类型
@@ -41,6 +56,11 @@ export interface OcrResult {
   // 添加平台识别结果
   detectedPlatform?: DetectedPlatform;
   extractedData: ExtractedData;
+  // 扩展属性
+  processingTime?: string;
+  ocrEngine?: string;
+  error?: boolean;
+  errorDetails?: any;
 }
 
 /**
@@ -48,17 +68,152 @@ export interface OcrResult {
  * @param imagePath 图片文件路径
  * @returns 提取的文本和OCR置信度
  */
-export async function extractTextFromImage(imagePath: string): Promise<{ text: string; confidence: number }> {
+export async function extractTextFromImage(imagePath: string): Promise<TextExtractionResult> {
+  // 检查文件是否存在
+  if (!fs.existsSync(imagePath)) {
+    console.error(`图片文件不存在: ${imagePath}`);
+    throw new Error(`文件不存在: ${imagePath}`);
+  }
+
+  // 检查文件是否为图片
   try {
-    // 使用DeepSeek OCR服务
-    const result = await deepseekOcrService.performOcr(imagePath);
-    return {
-      text: result.text,
-      confidence: result.confidence
-    };
+    const fileStats = fs.statSync(imagePath);
+    // 检查文件是否为空
+    if (fileStats.size === 0) {
+      throw new Error(`图片文件为空: ${imagePath}`);
+    }
+    
+    // 图片大小检查 (超过20MB可能会导致某些OCR服务失败)
+    const fileSizeMB = fileStats.size / (1024 * 1024);
+    if (fileSizeMB > 20) {
+      console.warn(`图片大小(${fileSizeMB.toFixed(2)}MB)较大，可能影响OCR处理性能`);
+    }
+  } catch (statError) {
+    console.error(`检查图片文件时出错:`, statError);
+    throw new Error(`无法读取图片文件: ${statError instanceof Error ? statError.message : '未知错误'}`);
+  }
+  
+  let deepseekError = null;
+  
+  try {
+    // 首先尝试使用DeepSeek OCR服务
+    try {
+      // 检查DeepSeek服务是否可用
+      const connectionStatus = deepseekOcrService.getConnectionStatus();
+      
+      if (connectionStatus.tested && !connectionStatus.valid) {
+        // DeepSeek服务已测试但不可用
+        console.log("DeepSeek服务不可用，直接使用Tesseract OCR");
+        throw new Error("DeepSeek连接测试失败，跳过尝试");
+      }
+      
+      // 尝试DeepSeek OCR处理
+      console.log(`尝试DeepSeek OCR处理图片: ${path.basename(imagePath)}`);
+      const startTime = Date.now();
+      const result = await deepseekOcrService.performOcr(imagePath);
+      const processTime = Date.now() - startTime;
+      
+      console.log(`DeepSeek OCR处理成功, 耗时: ${processTime}ms, 置信度: ${result.confidence.toFixed(2)}, 文本长度: ${result.text.length}`);
+      
+      // 对提取的文本进行简单验证
+      if (result.text.trim().length === 0) {
+        console.warn("DeepSeek OCR未提取到有效文本，切换到Tesseract");
+        throw new Error("DeepSeek OCR返回空文本");
+      }
+      
+      return {
+        text: result.text,
+        confidence: result.confidence,
+        source: 'deepseek' // 标记OCR源
+      };
+    } catch (error) {
+      // 保存DeepSeek错误信息用于日志
+      deepseekError = error;
+      
+      // 捕获特定错误类型
+      let errorMessage = error instanceof Error ? error.message : String(error);
+      let errorType = "未知错误";
+      
+      // 检查是否是网络连接错误
+      if (error && typeof error === 'object' && 'code' in error) {
+        const networkError = error as any;
+        if (['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET'].includes(networkError.code)) {
+          errorType = "网络连接错误";
+        }
+      } 
+      
+      // 检查是否是API密钥错误
+      if (errorMessage.includes('API key') || errorMessage.includes('认证失败')) {
+        errorType = "API密钥错误";
+      }
+      
+      // 检查是否是请求超时
+      if (errorMessage.includes('timeout') || errorMessage.includes('超时')) {
+        errorType = "请求超时";
+      }
+      
+      console.error(`DeepSeek OCR处理失败[${errorType}]: ${errorMessage}`);
+      console.log('回退到Tesseract OCR...');
+      
+      // 记录到error.log进行分析
+      try {
+        const errorLog = `[${new Date().toISOString()}] DeepSeek OCR错误: ${errorType} - ${errorMessage}\n`;
+        fs.appendFileSync('error.log', errorLog);
+      } catch (logError) {
+        // 忽略日志写入错误
+      }
+      
+      // 抛出异常继续流程到Tesseract
+      throw error; 
+    }
   } catch (error) {
-    console.error('DeepSeek OCR处理失败:', error);
-    throw new Error('文本提取失败');
+    // 如果DeepSeek服务失败，则使用Tesseract作为备选
+    console.log('使用Tesseract OCR作为备选...');
+    
+    try {
+      // 使用worker创建Tesseract实例，支持中文和英文
+      console.log('初始化Tesseract引擎...');
+      // 使用动态导入替代require
+      const tesseractModule = await import('tesseract.js');
+      const { createWorker } = tesseractModule.default || tesseractModule;
+      
+      // 避免传递无法序列化的logger函数
+      console.log('创建Tesseract worker，加载中英文语言包...');
+      // 使用简化版配置，不传递logger函数
+      const worker = await createWorker('chi_sim+eng');
+      
+      console.log('开始Tesseract文本识别...');
+      const startTime = Date.now();
+      
+      // 识别图片文本
+      const { data } = await worker.recognize(imagePath);
+      const processTime = Date.now() - startTime;
+      
+      // 释放worker资源
+      await worker.terminate();
+      
+      console.log(`Tesseract OCR识别成功, 耗时: ${processTime}ms, 置信度: ${data.confidence}, 文本长度: ${data.text.length}`);
+      
+      // 验证结果
+      if (data.text.trim().length === 0) {
+        throw new Error('Tesseract未识别出任何文本');
+      }
+      
+      return {
+        text: data.text,
+        confidence: data.confidence / 100, // Tesseract的置信度是0-100，转换为0-1
+        source: 'tesseract' // 标记OCR源
+      };
+    } catch (tesseractError) {
+      // Tesseract也失败，记录两种OCR方法的错误
+      console.error('Tesseract OCR处理失败:', tesseractError);
+      console.error('所有OCR方法都失败，无法提取文本');
+      
+      // 合并错误信息
+      const combinedError = `DeepSeek错误: ${deepseekError ? (typeof deepseekError === 'object' && 'message' in deepseekError ? deepseekError.message : String(deepseekError)) : 'N/A'}\nTesseract错误: ${typeof tesseractError === 'object' && 'message' in tesseractError ? tesseractError.message : String(tesseractError)}`;
+      
+      throw new Error(`文本提取失败: ${combinedError}`);
+    }
   }
 }
 
@@ -440,26 +595,113 @@ export function detectPlatform(text: string): OcrResult['detectedPlatform'] {
  * @returns 提取的OCR结果，包含文本和结构化数据
  */
 export async function processImage(imagePath: string): Promise<OcrResult> {
-  // 提取文本
-  const { text, confidence } = await extractTextFromImage(imagePath);
+  console.log(`处理图片: ${path.basename(imagePath)}`);
   
-  // 检测平台
-  const detectedPlatform = detectPlatform(text);
-  
-  // 从文本中提取结构化数据
-  const extractedData = extractActivityData(text);
-  
-  // 将检测到的平台信息添加到结构化数据中
-  if (detectedPlatform && detectedPlatform.code !== 'unknown') {
-    extractedData.platform = detectedPlatform.name;
+  try {
+    // 检查文件是否存在
+    if (!fs.existsSync(imagePath)) {
+      throw new Error(`图片文件不存在: ${imagePath}`);
+    }
+    
+    // 检查文件大小
+    try {
+      const stats = fs.statSync(imagePath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`图片大小: ${fileSizeMB.toFixed(2)} MB`);
+      
+      if (stats.size === 0) {
+        throw new Error(`图片文件为空: ${imagePath}`);
+      }
+      
+      if (fileSizeMB > 10) {
+        console.warn(`大图片警告: ${fileSizeMB.toFixed(2)} MB超过10MB，可能会影响处理性能`);
+      }
+    } catch (statError) {
+      console.error(`检查文件状态时出错:`, statError);
+      // 继续处理，不中断流程
+    }
+    
+    // 提取文本 - 带完整错误处理
+    let ocrResult;
+    try {
+      ocrResult = await extractTextFromImage(imagePath);
+      console.log(`成功提取文本，长度: ${ocrResult.text.length}, 置信度: ${ocrResult.confidence.toFixed(2)}`);
+      
+      // 验证文本内容
+      if (ocrResult.text.trim().length === 0) {
+        throw new Error("OCR提取的文本为空");
+      }
+    } catch (ocrError) {
+      console.error(`OCR文本提取失败:`, ocrError);
+      throw new Error(`无法从图片中提取文本: ${ocrError instanceof Error ? ocrError.message : "未知OCR错误"}`);
+    }
+    
+    const { text, confidence, source } = ocrResult;
+    
+    // 记录OCR源
+    console.log(`OCR引擎来源: ${source || "未知"}`);
+    
+    // 检测平台 - 带错误处理
+    let detectedPlatform;
+    try {
+      detectedPlatform = detectPlatform(text);
+      if (detectedPlatform) {
+        console.log(`平台检测结果: ${detectedPlatform.name} (${detectedPlatform.code}), 置信度: ${detectedPlatform.confidence.toFixed(2)}%`);
+      } else {
+        console.log('未检测到平台信息');
+        detectedPlatform = { name: '未知', code: 'unknown', confidence: 0 };
+      }
+    } catch (platformError) {
+      console.error(`平台检测失败:`, platformError);
+      detectedPlatform = { name: '未知', code: 'unknown', confidence: 0 };
+    }
+    
+    // 从文本中提取结构化数据 - 带错误处理
+    let extractedData: OcrResult['extractedData'] = {};
+    try {
+      extractedData = extractActivityData(text);
+      console.log(`成功提取活动数据: ${Object.keys(extractedData).filter(k => extractedData[k]).length} 个字段`);
+    } catch (dataExtractionError) {
+      console.error(`结构化数据提取失败:`, dataExtractionError);
+      // 提供基本的数据结构以保持类型兼容性
+      extractedData = {
+        activityName: `图片数据 ${path.basename(imagePath)}`,
+        description: "自动识别失败，请手动填写活动详情",
+        status: "未确定"
+      };
+    }
+    
+    // 将检测到的平台信息添加到结构化数据中
+    if (detectedPlatform && detectedPlatform.code !== 'unknown') {
+      extractedData.platform = detectedPlatform.name;
+    }
+    
+    // 返回完整的OCR结果
+    return {
+      text,
+      confidence,
+      detectedPlatform,
+      extractedData,
+      processingTime: new Date().toISOString(),  // 添加处理时间戳
+      ocrEngine: source || "standard"  // 记录使用的OCR引擎
+    };
+  } catch (error) {
+    console.error(`图片处理完全失败:`, error);
+    
+    // 返回带错误信息的基本结果，确保API仍能继续工作
+    return {
+      text: `[图片处理错误: ${error instanceof Error ? error.message : "未知错误"}]`,
+      confidence: 0.1,
+      detectedPlatform: { name: '未知', code: 'unknown', confidence: 0 },
+      extractedData: {
+        activityName: `OCR失败 - ${path.basename(imagePath)}`,
+        description: `无法处理图片: ${error instanceof Error ? error.message : "未知错误"}`,
+        status: "处理失败",
+        errorMessage: error instanceof Error ? error.message : "未知错误"
+      },
+      error: true
+    };
   }
-  
-  return {
-    text,
-    confidence,
-    detectedPlatform,
-    extractedData
-  };
 }
 
 /**
@@ -468,9 +710,94 @@ export async function processImage(imagePath: string): Promise<OcrResult> {
  * @returns 合并后的OCR结果
  */
 export async function processMultipleImages(imagePaths: string[]): Promise<OcrResult> {
-  // 并行处理所有图片
-  const ocrPromises = imagePaths.map(imagePath => processImage(imagePath));
-  const ocrResults = await Promise.all(ocrPromises);
+  console.log(`开始批量处理 ${imagePaths.length} 张图片...`);
+  
+  // 检查参数
+  if (!imagePaths || imagePaths.length === 0) {
+    console.error("未提供有效的图片路径");
+    throw new Error("需要至少一张图片进行OCR处理");
+  }
+  
+  // 检查图片路径是否存在
+  const validPaths = imagePaths.filter(path => {
+    try {
+      const exists = fs.existsSync(path);
+      if (!exists) {
+        console.warn(`图片路径无效，跳过: ${path}`);
+      }
+      return exists;
+    } catch (error) {
+      console.warn(`检查图片路径出错: ${path}`, error);
+      return false;
+    }
+  });
+  
+  if (validPaths.length === 0) {
+    console.error("没有有效的图片可处理");
+    throw new Error("所有图片路径都无效");
+  }
+  
+  console.log(`处理 ${validPaths.length} 张有效图片...`);
+  
+  // 使用 Promise.allSettled 替代 Promise.all，允许部分失败
+  console.log("开始OCR处理...");
+  const ocrPromises = validPaths.map(async (imagePath, index) => {
+    try {
+      console.log(`处理第 ${index + 1}/${validPaths.length} 张图片: ${imagePath}`);
+      const result = await processImage(imagePath);
+      console.log(`第 ${index + 1} 张图片处理成功，文本长度: ${result.text.length}`);
+      return { success: true, result };
+    } catch (error) {
+      console.error(`处理第 ${index + 1} 张图片失败:`, error);
+      // 返回一个基本的错误结果
+      return { 
+        success: false, 
+        error,
+        // 创建一个基本的结果以保持类型兼容
+        result: {
+          text: `[OCR处理失败 ${imagePath}: ${error instanceof Error ? error.message : "未知错误"}]`,
+          confidence: 0.1,
+          detectedPlatform: { name: "未知平台", code: "unknown", confidence: 0 },
+          extractedData: {
+            activityName: "OCR处理失败",
+            description: "无法提取文本内容",
+            status: "未确定"
+          }
+        }
+      };
+    }
+  });
+  
+  const settledResults = await Promise.allSettled(ocrPromises);
+  
+  // 过滤出成功的结果
+  const successfulResults = settledResults
+    .filter(r => r.status === 'fulfilled' && r.value.success)
+    .map(r => (r as PromiseFulfilledResult<any>).value.result);
+  
+  // 计算成功率
+  console.log(`OCR处理完成，成功: ${successfulResults.length}/${validPaths.length}`);
+  
+  // 如果没有成功的结果，创建一个基本的结果
+  if (successfulResults.length === 0) {
+    console.error("所有图片OCR处理都失败了");
+    
+    return {
+      text: "OCR处理失败，无法提取任何文本内容",
+      confidence: 0.1,
+      detectedPlatform: { name: "未知平台", code: "unknown", confidence: 0 },
+      extractedData: {
+        activityName: "OCR处理失败",
+        description: "无法提取任何有效文本",
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "未确定"
+      }
+    };
+  }
+  
+  // 使用成功的结果
+  const ocrResults = successfulResults;
   
   // 初始化合并结果
   const mergedResult: OcrResult = {
