@@ -85,32 +85,18 @@ export function AccountsTable({
                     </td>
                     {showActions && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {onEdit && (
-                          <button 
-                            onClick={() => onEdit(account.id)} 
-                            className="text-primary-600 hover:text-primary-900 mr-4"
-                          >
-                            编辑
-                          </button>
-                        )}
-                        {!onEdit && (
-                          <Link href={`/accounts/${account.id}/edit`} className="text-primary-600 hover:text-primary-900 mr-4">
-                            编辑
-                          </Link>
-                        )}
-                        {onDelete && (
-                          <button 
-                            onClick={() => onDelete(account.id)} 
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            删除
-                          </button>
-                        )}
-                        {!onDelete && (
-                          <Link href={`/accounts/${account.id}/delete`} className="text-red-600 hover:text-red-900">
-                            删除
-                          </Link>
-                        )}
+                        <button 
+                          onClick={() => onEdit ? onEdit(account.id) : alert('编辑功能未实现')} 
+                          className="text-primary-600 hover:text-primary-900 mr-4"
+                        >
+                          编辑
+                        </button>
+                        <button 
+                          onClick={() => onDelete ? onDelete(account.id) : alert('删除功能未实现')} 
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          删除
+                        </button>
                       </td>
                     )}
                   </tr>

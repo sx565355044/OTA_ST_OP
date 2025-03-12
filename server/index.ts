@@ -145,11 +145,16 @@ app.use((req, res, next) => {
   log(`Authentication setup with ALLOW_ANY_PASSWORD=${process.env.ALLOW_ANY_PASSWORD || false}`);
   log(`Database type: ${useMySQL ? 'MySQL' : (usePostgres ? 'PostgreSQL' : 'Memory')}`);
   log(`Server configured to listen on port ${port}`);
+  
+  // 在Replit环境中，确保使用0.0.0.0作为主机
+  const host = process.env.REPL_SLUG ? "0.0.0.0" : "localhost";
+  log(`Server host: ${host}`);
+  
   server.listen({
     port,
-    host: "0.0.0.0", // Listen on all interfaces
+    host, // 根据环境选择适当的主机
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on host:port ${host}:${port}`);
   });
 })();

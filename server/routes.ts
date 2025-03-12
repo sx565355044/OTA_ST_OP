@@ -322,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 从OCR结果中提取平台信息
       const detectedPlatform = platformDetectionResult?.detectedPlatform;
-      const platformName = detectedPlatform && detectedPlatform.confidence >= 75 
+      const platformName = detectedPlatform && detectedPlatform.confidence >= 10 
         ? detectedPlatform.name 
         : "未识别平台";
         
@@ -440,13 +440,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const detectedPlatform = platformDetectionResult?.detectedPlatform;
           
           // 如果检测到平台且置信度足够高，更新平台名称
-          if (detectedPlatform && detectedPlatform.confidence >= 75) {
+          if (detectedPlatform && detectedPlatform.confidence >= 10) {
             updateData.name = detectedPlatform.name;
             updateData.shortName = detectedPlatform.name.length > 2 
               ? detectedPlatform.name.substring(0, 2) 
               : detectedPlatform.name;
             
-            console.log(`账户更新: 检测到新的平台名称 ${detectedPlatform.name}`);
+            console.log(`账户更新: 检测到新的平台名称 ${detectedPlatform.name}，置信度: ${detectedPlatform.confidence.toFixed(2)}%`);
           }
         } catch (error) {
           console.error("检测平台名称时出错:", error);
