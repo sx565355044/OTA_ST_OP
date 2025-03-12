@@ -527,10 +527,10 @@ export async function processMultipleImages(imagePaths: string[]): Promise<OcrRe
     if (bestPlatform && 
         typeof bestPlatform === 'object' && 
         bestPlatform !== null &&
-        'name' in bestPlatform && 
-        typeof bestPlatform.name === 'string') {
-      // 使用类型安全的直接赋值
-      mergedResult.extractedData.platform = bestPlatform.name;
+        'name' in bestPlatform) {
+      // 类型断言确保TypeScript知道bestPlatform.name是一个字符串
+      const platformName = (bestPlatform as {name: string}).name;
+      mergedResult.extractedData.platform = platformName;
     }
   }
   

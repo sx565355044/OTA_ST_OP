@@ -39,9 +39,8 @@ interface AccountModalProps {
 }
 
 const accountSchema = z.object({
-  platform_name: z.string().min(1, '请输入平台名称'),
   account_type: z.string().min(1, '请选择账户类型'),
-  screenshots: z.array(z.instanceof(File)).optional().default([])
+  screenshots: z.array(z.instanceof(File)).min(1, '请上传至少一张平台截图').default([])
 });
 
 type AccountFormValues = z.infer<typeof accountSchema>;
@@ -61,8 +60,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
-      platform_name: '',
       account_type: '商家账户',
+      screenshots: [],
     },
   });
   
@@ -71,8 +70,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
     if (accountData && typeof accountData === 'object') {
       const account = accountData as any; // 临时解决类型问题
       form.reset({
-        platform_name: account.name || '',
         account_type: account.accountType || '商家账户',
+        screenshots: [],
       });
     }
   }, [accountData, form.reset, isEditing]);
@@ -104,7 +103,6 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
       
       // 创建FormData来处理文件上传
       const formData = new FormData();
-      formData.append('name', data.platform_name);
       formData.append('accountType', data.account_type);
       
       // 如果有多个截图，添加到formData
@@ -113,6 +111,8 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         data.screenshots.forEach((file, index) => {
           formData.append(`screenshots`, file);
         });
+      } else {
+        throw new Error('请至少上传一张平台截图');
       }
       
       try {
@@ -176,22 +176,7 @@ export function AccountModal({ isOpen, onClose, accountId }: AccountModalProps) 
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* 平台名称 */}
-            <FormField
-              control={form.control}
-              name="platform_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>平台名称</FormLabel>
-                  <FormControl>
-                    <Input placeholder="例如：携程、美团、飞猪等" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-
+            {/* 平台名称字段已移除，平台名称将通过OCR自动检测 */}
             
             {/* 账户类型 */}
             <FormField

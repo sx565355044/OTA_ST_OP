@@ -5,7 +5,7 @@ import { encryptPassword, comparePassword, encryptApiKey, decryptApiKey } from "
 import { scrapeActivities } from "./utils/scraper";
 import { generateStrategies } from "./services/deepseek";
 import { ctripApiLoginService } from "./services/ctrip-api-login";
-import { processMultipleImages } from "./utils/ocr-processor";
+import { processMultipleImages, processImage } from "./utils/ocr-processor";
 import { vectorStorage } from "./utils/vector-storage";
 import { z } from "zod";
 import { setupAuth } from "./auth";
@@ -315,16 +315,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         uploadedAt: new Date()
       }));
       
+      // 首先尝试从第一张截图中检测平台信息
+      const platformDetectionResult = screenshotFiles.length > 0 
+        ? await processImage(screenshotFiles[0].path) 
+        : null;
+      
+      // 从OCR结果中提取平台信息
+      const detectedPlatform = platformDetectionResult?.detectedPlatform;
+      const platformName = detectedPlatform && detectedPlatform.confidence >= 75 
+        ? detectedPlatform.name 
+        : "未识别平台";
+        
+      console.log(`平台检测结果: ${JSON.stringify(detectedPlatform || '未检测到平台')}`);
+      
       // 创建OTA账户的基本数据
       const accountInfo = {
-        name: accountData.name || accountData.platform_name,
+        name: platformName, // 使用自动检测的平台名称
         url: "vector_data", // 使用新占位符，表示我们使用向量数据存储
         accountType: accountData.accountType || accountData.account_type,
         userId,
         status: "处理中", // 初始状态为处理中
         username: "ocr_data", // 使用新默认值
         password: "vector_storage", // 占位密码
-        shortName: accountData.name || accountData.platform_name,
+        shortName: platformName.length > 2 ? platformName.substring(0, 2) : platformName, // 使用平台名称的缩写
         screenshotPath: mainScreenshotPath, // 只保存主截图路径，其他在screenshots.json中
       };
       
@@ -413,10 +426,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 准备更新数据
       const updateData: any = {
-        name: accountData.name || accountData.platform_name || existingAccount.name,
+        // 不再使用表单数据中的平台名称，保留原有名称
+        name: existingAccount.name,
         accountType: accountData.accountType || accountData.account_type || existingAccount.accountType,
         userId,
       };
+      
+      // 如果上传了新的截图，尝试识别平台名称
+      if (screenshotFiles.length > 0) {
+        try {
+          // 从第一张截图中检测平台信息
+          const platformDetectionResult = await processImage(screenshotFiles[0].path);
+          const detectedPlatform = platformDetectionResult?.detectedPlatform;
+          
+          // 如果检测到平台且置信度足够高，更新平台名称
+          if (detectedPlatform && detectedPlatform.confidence >= 75) {
+            updateData.name = detectedPlatform.name;
+            updateData.shortName = detectedPlatform.name.length > 2 
+              ? detectedPlatform.name.substring(0, 2) 
+              : detectedPlatform.name;
+            
+            console.log(`账户更新: 检测到新的平台名称 ${detectedPlatform.name}`);
+          }
+        } catch (error) {
+          console.error("检测平台名称时出错:", error);
+          // 检测失败时不更新平台名称，保持原有名称
+        }
+      }
       
       // 如果上传了新的截图
       if (screenshotFiles.length > 0) {
