@@ -38,7 +38,7 @@ import {
   insertStrategyParameterSchema,
   insertStrategyTemplateSchema,
   activities
-} from "@shared/schema";
+} from "@shared/schema-mysql";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize HTTP server

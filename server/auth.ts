@@ -3,7 +3,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage"; // Use the default storage
 import { comparePassword, encryptPassword } from "./utils/encryption";
-import { User as SelectUser } from "@shared/schema";
+import { User as SelectUser } from "@shared/schema-mysql";
 import dotenv from "dotenv";
 
 // Load environment variables

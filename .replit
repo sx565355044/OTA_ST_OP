@@ -1,14 +1,38 @@
-modules = ["nodejs-20", "bash", "web"]
-run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+modules = ["nodejs-20", "bash", "web", "postgresql-16"]
+run = "bash ./replit-start.sh"
+hidden = [".config", "package-lock.json"]
+entrypoint = "server/index.ts"
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-22_11"
+
+[env]
+XDG_CONFIG_HOME = "/home/runner/.config"
+PATH = "/home/runner/$REPL_SLUG/.config/npm/node_global/bin:/home/runner/$REPL_SLUG/node_modules/.bin"
+npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
+ALLOW_ANY_PASSWORD = "true"
+USE_MYSQL = "true"
+SESSION_SECRET = "otainsight_session_secret"
+
+[packager]
+language = "nodejs"
+
+[packager.features]
+packageSearch = true
+guessImports = true
+enabledForHosting = false
+
+[languages.javascript]
+pattern = "**/{*.js,*.jsx,*.ts,*.tsx}"
+syntax = "javascript"
+
+[languages.javascript.languageServer]
+start = [ "typescript-language-server", "--stdio" ]
 
 [deployment]
+run = ["sh", "-c", "npm run start"]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "NODE_ENV=production PORT=3000 node dist/index.js"]
-build = ["sh", "-c", "npm install && npm run build"]
+ignorePorts = false
 
 [workflows]
 runButton = "Start application"

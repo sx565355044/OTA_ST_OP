@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
-import { postgresStorage } from "./storage-pg";
+// import { postgresStorage } from "./storage-pg";
 import { mysqlStorage } from "./storage-mysql";
 import MemoryStore from "memorystore";
 import dotenv from "dotenv";
@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: false }));
 // USE_POSTGRES=true: 使用PostgreSQL
 // USE_MYSQL=true: 使用MySQL
 // 两者都不设置: 使用内存存储
-const usePostgres = process.env.USE_POSTGRES === "true";
+// const usePostgres = process.env.USE_POSTGRES === "true";
 const useMySQL = process.env.USE_MYSQL === "true";
 
 // 设置 Session 配置
@@ -49,24 +49,16 @@ const sessionConfig: session.SessionOptions = {
 // 添加会话存储
 const MemoryStoreSession = MemoryStore(session);
 if (useMySQL) {
-  if (!process.env.DATABASE_URL) {
-    console.error("DATABASE_URL is required when USE_MYSQL=true");
-    throw new Error("DATABASE_URL is required when USE_MYSQL=true");
+  if (!process.env.DATABASE_URL && !(process.env.MYSQL_HOST && process.env.MYSQL_DATABASE)) {
+    console.error("需要设置DATABASE_URL或MYSQL_HOST/MYSQL_DATABASE等参数");
+    throw new Error("MySQL连接信息缺失，请检查环境变量配置");
   }
   sessionConfig.store = mysqlStorage.sessionStore;
-  console.log("Using MySQL session store");
-  console.log("Database connection string available:", !!process.env.DATABASE_URL);
-} else if (usePostgres) {
-  if (!process.env.DATABASE_URL) {
-    console.error("DATABASE_URL is required when USE_POSTGRES=true");
-    throw new Error("DATABASE_URL is required when USE_POSTGRES=true");
-  }
-  sessionConfig.store = postgresStorage.sessionStore;
-  console.log("Using PostgreSQL session store");
-  console.log("Database connection string available:", !!process.env.DATABASE_URL);
+  console.log("使用MySQL会话存储");
+  console.log("数据库连接信息可用:", !!process.env.DATABASE_URL || !!(process.env.MYSQL_HOST && process.env.MYSQL_DATABASE));
 } else {
   sessionConfig.store = new MemoryStoreSession({ checkPeriod: 86400000 });
-  console.log("Using Memory session store");
+  console.log("使用内存会话存储");
 }
 
 // 应用会话中间件
@@ -143,7 +135,7 @@ app.use((req, res, next) => {
 
   // Log port configuration for debugging
   log(`Authentication setup with ALLOW_ANY_PASSWORD=${process.env.ALLOW_ANY_PASSWORD || false}`);
-  log(`Database type: ${useMySQL ? 'MySQL' : (usePostgres ? 'PostgreSQL' : 'Memory')}`);
+  log(`Database type: ${useMySQL ? 'MySQL' : 'Memory'}`);
   log(`Server configured to listen on port ${port}`);
   
   // 在Replit环境中，确保使用0.0.0.0作为主机

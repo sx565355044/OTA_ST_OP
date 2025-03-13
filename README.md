@@ -43,7 +43,7 @@
 - **Drizzle ORM**：类型安全的ORM，用于数据库操作
 - **Passport.js**：认证中间件
 - **Bcrypt**：密码哈希处理
-- **PostgreSQL / 内存存储**：数据持久化
+- **MySQL / 内存存储**：数据持久化
 
 ### 开发工具与库
 
@@ -58,7 +58,7 @@
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
 │                 │      │                 │      │                 │
 │  React 前端      │ ←──→ │  Express 后端   │ ←──→ │ 存储层           │
-│  (客户端)        │      │  (服务器)        │      │ (内存/PostgreSQL)│
+│  (客户端)        │      │  (服务器)        │      │ (内存/MySQL)      │
 │                 │      │                 │      │                 │
 └─────────────────┘      └────────┬────────┘      └─────────────────┘
                                   │
@@ -298,7 +298,7 @@ export const strategyParameters = pgTable("strategy_parameters", {
    - 实现了IStorage接口的所有方法
    - 包含默认测试数据
 
-2. **PostgreSQL存储(PostgresStorage)**：
+2. **MySQL存储(MySQLStorage)**：
    - 适用于生产环境
    - 使用Drizzle ORM进行类型安全的数据库操作
    - 支持事务和关系查询
@@ -364,15 +364,19 @@ AI策略生成过程：
 ### 环境要求
 
 - Node.js v16+
-- PostgreSQL 14+ (生产环境)
+- MySQL 8+ (生产环境)
 - DeepSeek API密钥 (用于AI功能)
 
 ### 环境变量
 
 ```
 # 数据库配置
-DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-USE_POSTGRES=true  # 使用PostgreSQL，false则使用内存存储
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=otainsight
+USE_MYSQL=true  # 使用MySQL，false则使用内存存储
 
 # 会话配置
 SESSION_SECRET=your_secret_key

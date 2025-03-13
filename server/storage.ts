@@ -15,10 +15,11 @@ import {
   InsertStrategyParameter,
   StrategyTemplate,
   InsertStrategyTemplate,
-} from "@shared/schema";
+} from "@shared/schema-mysql";
 
 import session from 'express-session';
 import createMemoryStore from "memorystore";
+import { mysqlStorage } from "./storage-mysql";
 
 const MemoryStore = createMemoryStore(session);
 
@@ -726,4 +727,8 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// 根据环境变量决定使用哪种存储
+const useMySQL = process.env.USE_MYSQL === "true";
+
+// 导出存储实例
+export const storage = useMySQL ? mysqlStorage : new MemStorage();
